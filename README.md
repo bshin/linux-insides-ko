@@ -1,15 +1,17 @@
+이 repository는 [0xAX/linux-insides](https://github.com/0xAX/linux-insides)의 비공식 번역입니다. 2018년 마지막 [commit](https://github.com/bshin/linux-insides-ko/commit/838380b9417404428e746877544ce2fe517b425c) 기준으로 번역 중입니다.
+
 linux-insides
 ===============
 
-A book-in-progress about the linux kernel and its insides.
+linux kernel과 그 내부에 대한 작성 중인 책입니다.
 
-**The goal is simple** - to share my modest knowledge about the insides of the linux kernel and help people who are interested in linux kernel insides, and other low-level subject matter. Feel free to go through the book [Start here](https://github.com/0xAX/linux-insides/blob/master/SUMMARY.md)
+**목적은 간단합니다** - linux kernel 내부에 대한 저의 지식을 공유하고, linux kernel 내부와 다른 low-level 주제에 관심을 가지는 사람들을 돕는 것입니다. [여기](https://github.com/0xAX/linux-insides/blob/master/SUMMARY.md)부터 시작해 주세요.
 
-**Questions/Suggestions**: Feel free about any questions or suggestions by pinging me at twitter [@0xAX](https://twitter.com/0xAX), adding an [issue](https://github.com/0xAX/linux-insides/issues/new) or just drop me an [email](mailto:anotherworldofworld@gmail.com).
+**질문/제안**: twitter [@0xAX](https://twitter.com/0xAX), [issue](https://github.com/0xAX/linux-insides/issues/new) 혹은 [email](mailto:anotherworldofworld@gmail.com)을 통해 질문이나 제안을 주세요.
 
 # Mailing List
 
-We have a Google Group mailing list for learning the kernel source code. Here are some instructions about how to use it.
+kernel source code를 학습하기 위한 Gooogle Group mailing list가 있습니다. 하기는 사용하는 방법입니다.
 
 #### Join
 
