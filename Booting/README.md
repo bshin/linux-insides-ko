@@ -1,12 +1,12 @@
 # Kernel Boot Process
 
-This chapter describes the linux kernel boot process. Here you will see a series of posts which describes the full cycle of the kernel loading process:
+이 chapter는 linux kernel의 boot process를 설명합니다. Kernel의 loading process의 전체 cycle을 설명하는 일련의 posts를 볼 수 있습니다:
 
-* [From the bootloader to kernel](linux-bootstrap-1.md) - describes all stages from turning on the computer to running the first instruction of the kernel.
-* [First steps in the kernel setup code](linux-bootstrap-2.md) - describes first steps in the kernel setup code. You will see heap initialization, query of different parameters like EDD, IST and etc...
-* [Video mode initialization and transition to protected mode](linux-bootstrap-3.md) - describes video mode initialization in the kernel setup code and transition to protected mode.
-* [Transition to 64-bit mode](linux-bootstrap-4.md) - describes preparation for transition into 64-bit mode and details of transition.
-* [Kernel Decompression](linux-bootstrap-5.md) - describes preparation before kernel decompression and details of direct decompression.
-* [Kernel random address randomization](linux-bootstrap-6.md) - describes randomization of the Linux kernel load address.
+* [Bootloader부터 kernel까지](linux-bootstrap-1.md) - computer의 전원을 켜는 것부터 kernel의 첫번째 instruction을 실행하는 모든 stages를 설명합니다.
+* [Kernel setup code에서 첫번째 steps](linux-bootstrap-2.md) - kernel setup code의 첫번째 steps을 설명합니다. You will see heap 초기화, EDD, IST 같은 다른 parameters의 query를 볼 수 있습니다.
+* [Video mode 초기화와 protected mode로의 천이](linux-bootstrap-3.md) - kernel setup code에서 video mode 초기화와 protected mode로 천이를 설명합니다.
+* [64-bit mode로의 천이](linux-bootstrap-4.md) - 64-bit mode로 천이를 위한 준비와 천이의 세부 내용을 설명합니다.
+* [Kernel 압축 해제](linux-bootstrap-5.md) - kernel 압축 해제 전 준비와 직접 압축 해제의 세부 내용을 설명합니다.
+* [Kernel random 주소 randomization](linux-bootstrap-6.md) - Linux kernel이 적제되는 주소의 randomization을 설명합니다.
 
-This chapter coincides with `Linux kernel v4.17`.
+이 chapter는 `Linux kernel v4.17`과 일치합니다.
