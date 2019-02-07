@@ -1,33 +1,33 @@
-Contributing
+기여하기
 ================================================================================
 
-If you want to contribute to [linux-insides](https://github.com/0xAX/linux-insides), please follow these simple rules:
+[linux-insides](https://github.com/0xAX/linux-insides)에 기여하기를 원한다면, 하기의 간단한 rules을 따라주세요:
 
-1. Press the fork button:
+1. fork button을 눌러주세요:
 
     ![fork](http://oi58.tinypic.com/jj2trm.jpg)
 
-2. Clone the repository from your account with:
+2. 하기와 같이 자신의 account의 repository를 clone해 주세요:
 
     ```
     git clone git@github.com:your_github_username/linux-insides.git
     ```
 
-3. Create a new branch with:
+3. 하기와 같이 새로운 branch를 만들어 주세요:
 
     ```
     git checkout -b "linux-bootstrap-1-fix"
     ```
-    You can name it however you want.
+    원하는 이름을 붙이시면 됩니다.
 
-4. Make your changes.
+4. 변경해 주세요.
 
-5. Don't forget to add yourself in `contributors.md`.
+5. `contributors.md`에 자신을 추가하는 것을 잊지 마세요.
 
-6. Commit and push your changes, then make a pull request from Github.
+6. 변경점을 commit하고 push하고, Github에서 pull request 생성해 주세요.
 
-**IMPORTANT**
+**중요**
 
-Please, don't forget to update your fork. While you made your changes, the content of the `master` branch can change because other pull requests were merged and it can create conflicts. This is why you have to rebase on `master` every time before pushing your changes and check that your branch doesn't have any conflicts with `master`.
+자신의 fork를 update하는 것을 잊지 마세요. 자신의 변경점을 만드는 동안, 다른 pull requests의 merge로 인해 `master` branch가 변경되어 conflicts를 생성할 수도 있습니다. 이것이 자신의 변경점을 push할 때마다 rebase하고 branch에 `master`와 conflicts가 없는지 확인해야 하는 이유입입니다.
 
-Thank you.
+감사합니다.
