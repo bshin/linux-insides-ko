@@ -5,7 +5,7 @@ linux-insides
 
 linux kernel과 그 내부에 대한 작성 중인 책입니다.
 
-**목적은 간단합니다** - linux kernel 내부에 대한 저의 지식을 공유하고, linux kernel 내부와 다른 low-level 주제에 관심을 가지는 사람들을 돕는 것입니다. [여기](https://github.com/bshin/linux-insides-ko/blob/master/SUMMARY.md)부터 시작해 주세요.
+**목적은 간단합니다** - linux kernel 내부에 대한 저의 지식을 공유하고, linux kernel 내부와 다른 low-level 주제에 관심을 가지는 사람들을 돕는 것입니다. [여기](https://github.com/bshin/linux-insides-ko/blob/ko/SUMMARY.md)부터 시작해 주세요.
 
 **질문/제안**: twitter [@0xAX](https://twitter.com/0xAX), [issue](https://github.com/0xAX/linux-insides/issues/new) 혹은 [email](mailto:anotherworldofworld@gmail.com)을 통해 질문이나 제안을 주세요.
 
@@ -49,7 +49,7 @@ https://groups.google.com/forum/#!forum/kernelhacking
 
 만약 어떤 문제가 있다면 issues나 pull-requests를 생성해 주세요.
 
-**어떤 변경점을 push하기 전에 [CONTRIBUTING.md](https://github.com/bshin/linux-insides-ko/blob/master/CONTRIBUTING.md)을 읽어 주세요.**
+**어떤 변경점을 push하기 전에 [CONTRIBUTING.md](https://github.com/bshin/linux-insides-ko/blob/ko/CONTRIBUTING.md)을 읽어 주세요.**
 
 ![image](http://oi58.tinypic.com/23upobq.jpg)
 
