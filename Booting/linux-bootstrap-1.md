@@ -193,13 +193,13 @@ PhysicalAddress = Segment Selector * 16 + Offset
 Bootloader
 --------------------------------------------------------------------------------
 
-There are a number of bootloaders that can boot Linux, such as [GRUB 2](https://www.gnu.org/software/grub/) and [syslinux](http://www.syslinux.org/wiki/index.php/The_Syslinux_Project). The Linux kernel has a [Boot protocol](https://github.com/torvalds/linux/blob/v4.16/Documentation/x86/boot.txt) which specifies the requirements for a bootloader to implement Linux support. This example will describe GRUB 2.
+linux를 boot시킬 수 있는 [GRUB 2](https://www.gnu.org/software/grub/)이나 [syslinux](http://www.syslinux.org/wiki/index.php/The_Syslinux_Project) 같은 bootloader는 다수 존재합니다. linux kernel은 linux를 지원하는 bootloader 구현을 위한 요구 사항을 기술한 [Boot protocol](https://github.com/torvalds/linux/blob/v4.16/Documentation/x86/boot.txt)를 가지고 있습니다. 이 예는 GRUB 2에서 설명합니다.
 
-Continuing from before, now that the `BIOS` has chosen a boot device and transferred control to the boot sector code, execution starts from [boot.img](http://git.savannah.gnu.org/gitweb/?p=grub.git;a=blob;f=grub-core/boot/i386/pc/boot.S;hb=HEAD). This code is very simple, due to the limited amount of space available, and contains a pointer which is used to jump to the location of GRUB 2's core image. The core image begins with [diskboot.img](http://git.savannah.gnu.org/gitweb/?p=grub.git;a=blob;f=grub-core/boot/i386/pc/diskboot.S;hb=HEAD), which is usually stored immediately after the first sector in the unused space before the first partition. The above code loads the rest of the core image, which contains GRUB 2's kernel and drivers for handling filesystems, into memory. After loading the rest of the core image, it executes the [grub_main](http://git.savannah.gnu.org/gitweb/?p=grub.git;a=blob;f=grub-core/kern/main.c) function.
+이전에 계속하여, 이제 `BIOS`는 boot device를 선택하고 control을 [boot.img](http://git.savannah.gnu.org/gitweb/?p=grub.git;a=blob;f=grub-core/boot/i386/pc/boot.S;hb=HEAD)로부터 실행을 시작하는 boot sector code로 넘깁니다. 이 code는 가용한 space의 제약으로 매우 간단한데, GRUB 2의 core image의 location으로 jump하기 위한 pointer를 가지고 있습니다. [diskboot.img](http://git.savannah.gnu.org/gitweb/?p=grub.git;a=blob;f=grub-core/boot/i386/pc/diskboot.S;hb=HEAD)로부터 시작되는 core image는 일반적으로 첫번째 sector 직후에 첫번째 partition 전의 사용되지 않는 sector에 저장됩니다. 위의 code는 GRUB 2의 kernel과 filesystem을 처리하기 위한 driver를 포함하는 core image의 나머지를 memory로 load합니다. core image의 나머지를 load한 이후, [grub_main](http://git.savannah.gnu.org/gitweb/?p=grub.git;a=blob;f=grub-core/kern/main.c) function을 수행합니다.
 
-The `grub_main` function initializes the console, gets the base address for modules, sets the root device, loads/parses the grub configuration file, loads modules, etc. At the end of execution, the `grub_main` function moves grub to normal mode. The `grub_normal_execute` function (from the `grub-core/normal/main.c` source code file) completes the final preparations and shows a menu to select an operating system. When we select one of the grub menu entries, the `grub_menu_execute_entry` function runs, executing the grub `boot` command and booting the selected operating system.
+`grub_main`은 console을 초기화하고, modules의 base address을 얻고, root device를 설정하고, grub configuration file을 load/parse하고, modules을 load하는 등의 일을 합니다. 수행의 마지막에, `grub_main` function은 grub을 normal mode로 천이시킵니다. `grub_normal_execute` function (source code file의 `grub-core/normal/main.c`)은 마지막 준비를 마치고 operating system 선택 menu를 보여줍니다. grub menu entries중 하나를 선택하면, `grub_menu_execute_entry` function가 실행되어, grub `boot` command를 수행하고 선택된 operating system을 boot합니다.
 
-As we can read in the kernel boot protocol, the bootloader must read and fill some fields of the kernel setup header, which starts at the `0x01f1` offset from the kernel setup code. You may look at the boot [linker script](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/setup.ld) to confirm the value of this offset. The kernel header [arch/x86/boot/header.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/header.S) starts from:
+kernel boot protocol에서 읽을 수 있는 것처럼, bootloader는 kernel setup code로부터 offset `0x01f1`에서 시작되는 kernel setup header의 일부 fields를 읽고 채워줘야 합니다. 이 offset의 값을 확인하기 위해 boot [linker script](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/setup.ld)를 봐도 됩니다. kernel header [arch/x86/boot/header.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/header.S)는 다음과 같이 시작됩니다:
 
 ```assembly
     .globl hdr
@@ -213,9 +213,9 @@ hdr:
     boot_flag:   .word 0xAA55
 ```
 
-The bootloader must fill this and the rest of the headers (which are only marked as being type `write` in the Linux boot protocol, such as in [this example](https://github.com/torvalds/linux/blob/v4.16/Documentation/x86/boot.txt#L354)) with values which it has either received from the command line or calculated during boot. (We will not go over full descriptions and explanations for all fields of the kernel setup header now, but we shall do so when we discuss how the kernel uses them; you can find a description of all fields in the [boot protocol](https://github.com/torvalds/linux/blob/v4.16/Documentation/x86/boot.txt#L156).)
+bootloader는 이것과 headers의 나머지([이 예](https://github.com/torvalds/linux/blob/v4.16/Documentation/x86/boot.txt#L354)와 같이 linux boot protocol에서 type이 `write`로 표기되어 있는 부분만)를 command line에서 받거나 boot동안 계산한 값으로 채워줘야 합니다. (지금 kernel setup header의 모든 fields에 대한 전체 기술과 설명은 하지 않을 것입니다. 하지만, kernel이 그것들을 어떻게 사용하는지 설명할 때 그렇게 할 것입니다; 전체 fields의 설명은 [boot protocol](https://github.com/torvalds/linux/blob/v4.16/Documentation/x86/boot.txt#L156)에서 볼 수 있습니다.)
 
-As we can see in the kernel boot protocol, the memory will be mapped as follows after loading the kernel:
+kernel boot protocl에서 볼 수 있는 것 처럼 kernel load후 memory는 다음과 같이 map되어 있습니다:
 
 ```shell
          | Protected-mode kernel  |
@@ -242,17 +242,17 @@ X+08000  +------------------------+
 
 ```
 
-So, when the bootloader transfers control to the kernel, it starts at:
+bootloader가 kernel로 control을 넘길 때, 하기에서 시작합니다:
 
 ```
 X + sizeof(KernelBootSector) + 1
 ```
 
-where `X` is the address of the kernel boot sector being loaded. In my case, `X` is `0x10000`, as we can see in a memory dump:
+여기서 `X`는 load된 kernel boot sector의 address입니다. memory dump에서 볼 수 있는 것처럼 `X`는 `0x10000`입니다:
 
 ![kernel first address](http://oi57.tinypic.com/16bkco2.jpg)
 
-The bootloader has now loaded the Linux kernel into memory, filled the header fields, and then jumped to the corresponding memory address. We can now move directly to the kernel setup code.
+이제 bootloader가 linux kernel을 memory에 load하고, header fields를 채우고, 대응하는 memory address로 jump했습니다. 이제 kernel setup code로 바로 이동할 수 있습니다.
 
 The Beginning of the Kernel Setup Stage
 --------------------------------------------------------------------------------
