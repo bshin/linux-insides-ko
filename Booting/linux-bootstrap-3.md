@@ -4,23 +4,23 @@ Kernel booting process. Part 3.
 Video mode initialization and transition to protected mode
 --------------------------------------------------------------------------------
 
-This is the third part of the `Kernel booting process` series. In the previous [part](linux-bootstrap-2.md#kernel-booting-process-part-2), we stopped right before the call to the `set_video` routine from [main.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c).
+이것은 `kernel booting process` series의 세번째 part입니다. 이전 [part](linux-bootstrap-2.md#kernel-booting-process-part-2)에서, [main.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c)에서 `set_video` routine을 호출하기 직전까지 살펴보았습니다.
 
-In this part, we will look at:
+이 part에서는 다음 사항을 살펴볼 것입니다:
 
-* video mode initialization in the kernel setup code,
-* the preparations made before switching into protected mode,
-* the transition to protected mode
+* kernel setup code에서 video mode 초기화,
+* protected mode로 천이되기 전에 이루어지는 준비,
+* protected mode로의 천이
 
-**NOTE** If you don't know anything about protected mode, you can find some information about it in the previous [part](linux-bootstrap-2.md#protected-mode). Also, there are a couple of [links](linux-bootstrap-2.md#links) which can help you.
+**NOTE** 만약 protected mode에 대해 알지 못한다면, 이전 [part](linux-bootstrap-2.md#protected-mode)에서 약간의 정보를 확인할 수 있습니다. 또한, 이에 대한 몇개의 [links](linux-bootstrap-2.md#links)도 있습니다.
 
-As I wrote above, we will start from the `set_video` function which is defined in the [arch/x86/boot/video.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/video.c) source code file. We can see that it starts by first getting the video mode from the `boot_params.hdr` structure:
+이전에 쓴 것처럼, [arch/x86/boot/video.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/video.c) source code file에 정의되어 있는 `set_video` 함수부터 시작할 것입니다. `boot_params.hdr` structure로부터 video mode를 얻는 것으로 시작하는 것을 보실 수 있습니다:
 
 ```C
 u16 mode = boot_params.hdr.vid_mode;
 ```
 
-which we filled in the `copy_boot_params` function (you can read about it in the previous post). `vid_mode` is an obligatory field which is filled by the bootloader. You can find information about it in the kernel `boot protocol`:
+그리고 이것은 (이전 post에서 볼 수 있듯이) `copy_boot_params` 함수에서 채웁니다. `vid_mode`는 bootloader가 채워야만 하는 의무적인 field입니다. kernel의 `boot_protocol`에서 이러한 정보를 찾을 수 있습니다:
 
 ```
 Offset	Proto	Name		Meaning
@@ -28,7 +28,7 @@ Offset	Proto	Name		Meaning
 01FA/2	ALL	    vid_mode	Video mode control
 ```
 
-As we can read from the linux kernel boot protocol:
+kernel boot protocol에서 다음과 같은 부분을 읽을 수 있습니다:
 
 ```
 vga=<mode>
@@ -40,59 +40,59 @@ vga=<mode>
 	line is parsed.
 ```
 
-So we can add the `vga` option to the grub (or another bootloader's) configuration file and it will pass this option to the kernel command line. This option can have different values as mentioned in the description. For example, it can be an integer number `0xFFFD` or `ask`. If you pass `ask` to `vga`, you will see a menu like this:
+grub (혹은 다른 bootloader)의 configuration에 `vga` option을 추가할 수 있으며, 이 option은 kernel command line으로 전달됩니다. 이 option은 description에 언급된 다른 값을 가질 수 있습니다. 예를 들면, 이 option은 integer number `0xFFFD` 혹은 `ask`가 될 수 있습니다. 만약 `vga`에 `ask`를 전달한다면, 다음과 같은 menu를 볼 수 있습니다:
 
 ![video mode setup menu](http://oi59.tinypic.com/ejcz81.jpg)
 
-which will ask to select a video mode. We will look at its implementation, but before diving into the implementation we have to look at some other things.
+이것은 video mode의 선택을 요청하는 것입니다. 이 구현에 뛰어들 것입니다만, 그 전에 약간의 다른 것들을 살펴봐야 합니다.
 
 Kernel data types
 --------------------------------------------------------------------------------
 
-Earlier we saw definitions of different data types like `u16` etc. in the kernel setup code. Let's look at a couple of data types provided by the kernel:
+이전에 kernel setup code에서 `u16`과 같은 상이한 data types의 정의를 살펴 보았습니다. kernel에서 제공하는 몇개의 data types을 살펴봅시다:
 
 
 | Type | char | short | int | long | u8 | u16 | u32 | u64 |
 |------|------|-------|-----|------|----|-----|-----|-----|
 | Size |  1   |   2   |  4  |   8  |  1 |  2  |  4  |  8  |
 
-If you read the source code of the kernel, you'll see these very often and so it will be good to remember them.
+kernel의 source code를 보실 때, 자주 이러한 것들을 보실 수 있으며 기억해 두면 좋을 것입니다.
 
 Heap API
 --------------------------------------------------------------------------------
 
-After we get `vid_mode` from `boot_params.hdr` in the `set_video` function, we can see the call to the `RESET_HEAP` function. `RESET_HEAP` is a macro which is defined in [arch/x86/boot/boot.h](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/boot.h) header file.
+`set_video` 함수에서 `boot_params.hdr`로부터 `vid_mode`를 가져온 이후, `RESET_HEAP` 함수를 호출하는 것을 볼 수 있습니다. `RESET_HEAP`은 [arch/x86/boot/boot.h](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/boot.h) header file에 정의되어 있는 macro 입니다.
 
-This macro is defined as:
+이 macro는 다음과 같이 정의되어 있습니다:
 
 ```C
 #define RESET_HEAP() ((void *)( HEAP = _end ))
 ```
 
-If you have read the second part, you will remember that we initialized the heap with the [`init_heap`](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c) function. We have a couple of utility macros and functions for managing the heap which are defined in `arch/x86/boot/boot.h` header file.
+두번째 part를 읽으셨다면, [`init_heap`](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c) 함수로 heap을 초기화한 것을 기억하실 겁니다. `arch/x86/boot/boot.h` header file에 정의되어 있는 heap을 관리하기 위한 몇가지 utility macros와 함수가 있습니다.
 
-They are:
+그것들은 다음과 같습니다:
 
 ```C
 #define RESET_HEAP()
 ```
 
-As we saw just above, it resets the heap by setting the `HEAP` variable to `_end`, where `_end` is just `extern char _end[];`
+위에서 본 것처럼, 이것은 `HEAP` variable에 `_end`를 설정하여 heap을 reset합니다. 여기서 `_end`는 단순히 `extern char _end[];`입니다.
 
-Next is the `GET_HEAP` macro:
+다음은 heap allocation을 위한 `GET_HEAP` macro입니다:
 
 ```C
 #define GET_HEAP(type, n) \
 	((type *)__get_heap(sizeof(type),__alignof__(type),(n)))
 ```
 
-for heap allocation. It calls the internal function `__get_heap` with 3 parameters:
+이것은 3개의 parameters로 내부 함수 `__get_heap`을 호출합니다:
 
-* the size of the datatype to be allocated for
-* `__alignof__(type)` specifies how variables of this type are to be aligned
-* `n` specifies how many items to allocate
+* allocate할 dataypte의 size
+* 이 type의 variables이 어떻게 align될지 기술하는 `__alignof__(type)`
+* 몇개의 items을 allocate할지 기술하는 `n`
 
-The implementation of `__get_heap` is:
+`__get_heap`의 구현은 다음과 같습니다:
 
 ```C
 static inline char *__get_heap(size_t s, size_t a, size_t n)
@@ -106,15 +106,15 @@ static inline char *__get_heap(size_t s, size_t a, size_t n)
 }
 ```
 
-and we will further see its usage, something like:
+그리고 하기와 같이 사용됩니다:
 
 ```C
 saved.data = GET_HEAP(u16, saved.x * saved.y);
 ```
 
-Let's try to understand how `__get_heap` works. We can see here that `HEAP` (which is equal to `_end` after `RESET_HEAP()`) is assigned the address of the aligned memory according to the `a` parameter. After this we save the memory address from `HEAP` to the `tmp` variable, move `HEAP` to the end of the allocated block and return `tmp` which is the start address of allocated memory.
+`__get_heap`이 어떻게 동작하는지 이해해 봅시다. 여기서 (`RESET_HEAP()`이후 `_end`와 같아진) `HEAP`이 `a` parameter에 따라 align된 memory의 address가 설정되는 것을 볼 수 있습니다. 이후 `HEAP`의 memory address를 `tmp` variable에 저장하고 `HEAP`을 allocate된 bloack의 끝으로 옮기고 allocate된 memory의 시작 address인 `tmp`를 return합니다.
 
-And the last function is:
+그리고 마지막 함수는 다음과 같습니다:
 
 ```C
 static inline bool heap_free(size_t n)
@@ -123,29 +123,29 @@ static inline bool heap_free(size_t n)
 }
 ```
 
-which subtracts value of the `HEAP` pointer from the `heap_end` (we calculated it in the previous [part](linux-bootstrap-2.md)) and returns 1 if there is enough memory available for `n`.
+이것은 (이전 [part](linux-bootstrap-2.md)에서 계산한) `heap_end`에서 `HEAP`를 빼고, `n`을 위한 충분한 memory가 있으면 1을 return합니다.
 
-That's all. Now we have a simple API for heap and can setup video mode.
+이것이 전부입니다. 이제 heap을 위한 API를 이해했고 video mode를 setup할 수 있습니다.
 
 Set up video mode
 --------------------------------------------------------------------------------
 
-Now we can move directly to video mode initialization. We stopped at the `RESET_HEAP()` call in the `set_video` function. Next is the call to  `store_mode_params` which stores video mode parameters in the `boot_params.screen_info` structure which is defined in [include/uapi/linux/screen_info.h](https://github.com/torvalds/linux/blob/v4.16/include/uapi/linux/screen_info.h) header file.
+이제 video mode 초기화로 바로 갈 수 있습니다. `set_video` 함수에서 `RESET_HEAP()` 호출하는 곳에서 멈췄었습니다. 다음은 [include/uapi/linux/screen_info.h](https://github.com/torvalds/linux/blob/v4.16/include/uapi/linux/screen_info.h) header file에 정의된 `boot_params.screen_info` structure에 video mode parameters를 저장하는 `store_mode_params`를 호출합니다.
 
-If we look at the `store_mode_params` function, we can see that it starts with a call to the `store_cursor_position` function. As you can understand from the function name, it gets information about the cursor and stores it.
+`store_mode_params` 함수를 보시면 `store_cursor_position` 함수를 호출하는 것으로 시작하는 것을 볼 수 있습니다. 함수 이름에서 알 수 있듯이, 이것은 cursor의 정보를 얻어 저장합니다.
 
-First of all, `store_cursor_position` initializes two variables which have type `biosregs` with `AH = 0x3`, and calls the `0x10` BIOS interruption. After the interruption is successfully executed, it returns row and column in the `DL` and `DH` registers. Row and column will be stored in the `orig_x` and `orig_y` fields of the `boot_params.screen_info` structure.
+무엇보다도 먼저, `store_cursor_position`은 `AH = 0x3`인 `biosregs` type의 2개의 variables를 초기화하고, `0x10` BIOS interrupt를 호출합니다. interrupt가 성공적으로 실행된 이후, row와 column이 `DL`과 `DH` registers로 return됩니다. row와 column은 `boot_params.screen_info` structure의 `orig_x`와 `orig_y` fields에 저장됩니다.
 
-After `store_cursor_position` is executed, the `store_video_mode` function will be called. It just gets the current video mode and stores it in `boot_params.screen_info.orig_video_mode`.
+`store_cursor_position`이 실행된 후, `store_video_mode` 함수가 호출됩니다. 이것은 현재 video mode를 얻어서 `boot_params.screen_info.orig_video_mode`에 저장합니다.
 
-After this, `store_mode_params` checks the current video mode and sets the `video_segment`. After the BIOS transfers control to the boot sector, the following addresses are for video memory:
+이후 `store_mode_params`는 현재 video mode를 확인하고 `video_segment`를 설정합니다. BIOS가 boot sector로 control을 이전한 이후, 다음이 video memory를 위한 address입니다:
 
 ```
 0xB000:0x0000 	32 Kb 	Monochrome Text Video Memory
 0xB800:0x0000 	32 Kb 	Color Text Video Memory
 ```
 
-So we set the `video_segment` variable to `0xb000` if the current video mode is MDA, HGC, or VGA in monochrome mode and to `0xb800` if the current video mode is in color mode. After setting up the address of the video segment, the font size needs to be stored in `boot_params.screen_info.orig_video_points` with:
+만약 현재 video mode가 monochrome mode에서 MDA, HGC, 혹은 VGA라면 `video_segment` variable을 `0xb000`으로 설정하고, color mode라면 `0xb800`으로 설정합니다. video segment의 address를 설정한 후, 다음과 같이 `boot_params.screen_info.orig_video_points`에 font size를 저장해야 합니다:
 
 ```C
 set_fs(0);
@@ -153,16 +153,16 @@ font_size = rdfs16(0x485);
 boot_params.screen_info.orig_video_points = font_size;
 ```
 
-First of all, we put 0 in the `FS` register with the `set_fs` function. We already saw functions like `set_fs` in the previous part. They are all defined in [arch/x86/boot/boot.h](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/boot.h). Next, we read the value which is located at address `0x485` (this memory location is used to get the font size) and save the font size in `boot_params.screen_info.orig_video_points`.
+무엇보다도 먼저 `set_fs` 함수에서 `FS` register에 0을 설정합니다. 이전 part에서 [arch/x86/boot/boot.h](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/boot.h)에 정의된 `set_fs`와 같은 fucntion을 보았습니다. 다음으로 `0x485` address (이 memory는 font size를 얻기 위해 사용됩니다)의 값을 읽어 `boot_params.screen_info.orig_video_points`에 font size를 저장합니다.
 
 ```C
 x = rdfs16(0x44a);
 y = (adapter == ADAPTER_CGA) ? 25 : rdfs8(0x484)+1;
 ```
 
-Next, we get the amount of columns by address `0x44a` and rows by address `0x484` and store them in `boot_params.screen_info.orig_video_cols` and `boot_params.screen_info.orig_video_lines`. After this, execution of `store_mode_params` is finished.
+다음으로 `0x44a` address에서 column을 그리고 `0x484` address에서 row의 값을 얻어 `boot_params.screen_info.orig_video_cols`와 `boot_params.screen_info.orig_video_lines`에 저장합니다. 이후 `store_mode_params`의 실행을 끝냅니다.
 
-Next we can see the `save_screen` function which just saves the contents of the screen to the heap. This function collects all the data which we got in the previous functions (like the rows and columns, and stuff) and stores it in the `saved_screen` structure, which is defined as:
+다음으로 screen의 content를 heap에 저장하는 `save_screen` 함수를 볼 수 있습니다. 이 함수는 이전 함수에서 얻은 (row, columns과 같은) 모든 data를 수집하여 다음처럼 정의되어 있는 `save_screen` structure에 저장합니다:
 
 ```C
 static struct saved_screen {
@@ -172,16 +172,16 @@ static struct saved_screen {
 } saved;
 ```
 
-It then checks whether the heap has free space for it with:
+그리고 다음과 같이 heap이 free space를 가지고 있는지 확인합니다:
 
 ```C
 if (!heap_free(saved.x*saved.y*sizeof(u16)+512))
 		return;
 ```
 
-and allocates space in the heap if it is enough and stores `saved_screen` in it.
+공간이 충분하다면 heap에 space를 allocate하고 `saved_screen`을 저장합니다.
 
-The next call is `probe_cards(0)` from [arch/x86/boot/video-mode.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/video-mode.c) source code file. It goes over all video_cards and collects the number of modes provided by the cards. Here is the interesting part, we can see the loop:
+다음은 [arch/x86/boot/video-mode.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/video-mode.c) source code file에 정의되어 있는 `probe_cards(0)`를 호출합니다. 이것은 모든 video_card를 돌면서 그 card에서 제공되는 mode의 개수를 수집합니다. 여기서 흥미로운 부분은 하기와 같은 loop 입니다:
 
 ```C
 for (card = video_cards; card < video_cards_end; card++) {
@@ -189,7 +189,7 @@ for (card = video_cards; card < video_cards_end; card++) {
 }
 ```
 
-but `video_cards` is not declared anywhere. The answer is simple: every video mode presented in the x86 kernel setup code has a definition that looks like this:
+하지만 `video_cards`는 어디에서 선언되어 있지 않습니다. 답은 간단합니다: x86 kernel setup code에서 나타나는 모든 video mode는 하기와 같은 정의를 가지고 있습니다:
 
 ```C
 static __videocard video_vga = {
@@ -199,13 +199,13 @@ static __videocard video_vga = {
 };
 ```
 
-where `__videocard` is a macro:
+여기서 `__videocard`는 하기와 같은 macro입니다:
 
 ```C
 #define __videocard struct card_info __attribute__((used,section(".videocards")))
 ```
 
-which means that the `card_info` structure:
+즉, `card_info` structure를 의미합니다:
 
 ```C
 struct card_info {
@@ -220,7 +220,7 @@ struct card_info {
 };
 ```
 
-is in the `.videocards` segment. Let's look in the [arch/x86/boot/setup.ld](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/setup.ld) linker script, where we can find:
+이것은 `.videocards` segment에 저장됩니다. [arch/x86/boot/setup.ld](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/setup.ld) linker script를 살펴보면, 다음과 같은 부분을 찾을 수 있습니다:
 
 ```
 	.videocards	: {
@@ -230,13 +230,13 @@ is in the `.videocards` segment. Let's look in the [arch/x86/boot/setup.ld](http
 	}
 ```
 
-It means that `video_cards` is just a memory address and all `card_info` structures are placed in this segment. It means that all `card_info` structures are placed between `video_cards` and `video_cards_end`, so we can use a loop to go over all of it. After `probe_cards` executes we have a bunch of structures like `static __videocard video_vga` with the `nmodes` (the number of video modes) filled in.
+이것은 `video_cards`는 그냥 memory address이고 모든 `card_info` structure는 이 segment에 저장되어 있다는 것을 의미합니다. 이것은 모든 `card_info` structure는 `video_cards`와 `video_cards_end` 사이에 위치한다는 것을 의미하기 때문에 loop를 사용하여 그것을 순회할 수 있습니다. `probe_cards`가 실행된 후, `nmodes` (video modes의 수)가 채워진 복수개의 `static __videocard video_vga` structure를 얻게 됩니다.
 
-After the `probe_cards` function is done, we move to the main loop in the `set_video` function. There is an infinite loop which tries to set up the video mode with the `set_mode` function or prints a menu if we passed `vid_mode=ask` to the kernel command line or if video mode is undefined.
+`prove_cards` 함수가 완료된 후, `set_video` 함수의 main loop로 이동합니다. 여기에는 `set_mode` 함수로 video mode를 설정하거나, kernel command line으로 `vid_mode=ask`를 전달했거나 video mode가 undefine되어 있는 경우 menu를 출력하는 무한 loop가 있습니다.
 
-The `set_mode` function is defined in [video-mode.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/video-mode.c) and gets only one parameter, `mode`, which is the number of video modes (we got this value from the menu or in the start of `setup_video`, from the kernel setup header).
+`set_mode` 함수는 [video-mode.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/video-mode.c)에 정의되어 있으며 `mode`라는 하나의 parameter만 받습니다. `mode`는 video mode의 개수로 menu에서 얻거나 kernel setup header의 `setup_video`의 시작 부분에서 얻습니다.
 
-The `set_mode` function checks the `mode` and calls the `raw_set_mode` function. The `raw_set_mode` calls the selected card's `set_mode` function, i.e. `card->set_mode(struct mode_info*)`. We can get access to this function from the `card_info` structure. Every video mode defines this structure with values filled depending upon the video mode (for example for `vga` it is the `video_vga.set_mode` function. See the above example of the `card_info` structure for `vga`). `video_vga.set_mode` is `vga_set_mode`, which checks the vga mode and calls the respective function:
+`set_mode` 함수는 `mode`를 확인하고 `raw_set_mode` 함수를 호출합니다. `raw_set_mode`는 선택된 card의 `set_mode` 함수 즉, `card->set_mode(struct mode_info *)`를 호출합니다. 이 함수는 `card_info` structure로부터 access할 수 있습니다. 모든 video mode는 video mode에 따라 값이 채워진 이 structure가 정의되어 있습니다. (예를 들면, `vga`의 경우 `video_vga.set_mode` 함수입니다. 위의 예에서 `vga`의 `card_info` structure를 참조해 주십시요.) `video_vga.set_mode`는 `vga_set_mode`로 vga mode를 확인하고 각각의 함수를 호출합니다:
 
 ```C
 static int vga_set_mode(struct mode_info *mode)
@@ -272,24 +272,24 @@ static int vga_set_mode(struct mode_info *mode)
 }
 ```
 
-Every function which sets up video mode just calls the `0x10` BIOS interrupt with a certain value in the `AH` register.
+videoo mode를 설정하는 각 함수는 특정 값을 `AH` register에 설정하고 `0x10` BIOS interrupt를 호출합니다.
 
-After we have set the video mode, we pass it to `boot_params.hdr.vid_mode`.
+video mode를 설정한 후, 그것을 `boot_params.hdr.vid_mode`에 저장합니다.
 
-Next, `vesa_store_edid` is called. This function simply stores the [EDID](https://en.wikipedia.org/wiki/Extended_Display_Identification_Data) (**E**xtended **D**isplay **I**dentification **D**ata) information for kernel use. After this `store_mode_params` is called again. Lastly, if `do_restore` is set, the screen is restored to an earlier state.
+다음으로 `vesa_store_edid`가 호출됩니다. 이 함수는 단순히 kernel에서 사용하기 위해 [EDID](https://en.wikipedia.org/wiki/Extended_Display_Identification_Data) (**E**xtended **D**isplay **I**dentification **D**ata) 정보를 저장합니다. 이후 `store_mode_params`가 다시 호출됩니다. 마지막으로 `do_restore`가 설정되어 있으면, screen이 이전 state로 복원됩니다.
 
-Having done this, the video mode setup is complete and now we can switch to the protected mode.
+이것을 마치면 video mode 설정은 완료됩니다. 이제 protected mode로 천이시킬 수 있습니다.
 
 Last preparation before transition into protected mode
 --------------------------------------------------------------------------------
 
-We can see the last function call - `go_to_protected_mode` - in [arch/x86/boot/main.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c). As the comment says: `Do the last things and invoke protected mode`, so let's see what these last things are and switch into protected mode.
+[arch/x86/boot/main.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c)에서 마지막 함수 호출인 `go_to_protected_mode`를 볼 수 있습니다. `나머지 것들을 하고 protected mode를 호출`이라는 comment 처럼, 나머지 것들이 무엇인지와 protected mode로 변경하는 것을 살펴봅시다.
 
-The `go_to_protected_mode` function is defined in [arch/x86/boot/pm.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/pm.c). It contains some functions which make the last preparations before we can jump into protected mode, so let's look at it and try to understand what it does and how it works.
+`go_to_protected_mode` 함수는 [arch/x86/boot/pm.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/pm.c)에 정의되어 있습니다. 이것은 protected mode로 진입하기 전 마지막 준비를 수행하는 몇개의 함수를 포함하고 있습니다. 이것을 무엇을 어떻게 하는지 이해해 봅시다.
 
-First is the call to the `realmode_switch_hook` function in `go_to_protected_mode`. This function invokes the real mode switch hook if it is present and disables [NMI](http://en.wikipedia.org/wiki/Non-maskable_interrupt). Hooks are used if the bootloader runs in a hostile environment. You can read more about hooks in the [boot protocol](https://www.kernel.org/doc/Documentation/x86/boot.txt) (see **ADVANCED BOOT LOADER HOOKS**).
+`go_to_protected_mode`에서 시작은 `realmode_switch_hook` 함수를 호출하는 것입니다. 이 함수는 real mode switch hook이 존재하고 [NMI](http://en.wikipedia.org/wiki/Non-maskable_interrupt)가 disable되어 있으면 호출되도록 되어 있습니다. hook에 대해서는 [boot protocol](https://www.kernel.org/doc/Documentation/x86/boot.txt)  (**ADVANCED BOOT LOADER HOOKS** 참조)에서 좀 더 자세히 읽어 볼 수 있습니다.
 
-The `realmode_switch` hook presents a pointer to the 16-bit real mode far subroutine which disables non-maskable interrupts. After the `realmode_switch` hook (it isn't present for me) is checked, Non-Maskable Interrupts(NMI) is disabled:
+`realmode_switch` hook은 non-maskable interrupt를 disable하는 16-bit real mode far subroutine의 pointer 입니다. `realmode_switch` hook을 확인하고 (나의 경우에는 없었지만), Non-Maskable Interrupts(NMI)가 disable됩니다:
 
 ```assembly
 asm volatile("cli");
@@ -297,11 +297,11 @@ outb(0x80, 0x70);	/* Disable NMI */
 io_delay();
 ```
 
-At first, there is an inline assembly statement with a `cli` instruction which clears the interrupt flag (`IF`). After this, external interrupts are disabled. The next line disables NMI (non-maskable interrupt).
+처음에 interrupt flag (`IF`)를 clear하는 `cli` instruction을 포함하는 inline assembly가 나옵니다. 이후, external interrupt가 disable됩니다. 그 다음 line이 NMI (non-maskable interrupt)를 disable시킵니다.
 
-An interrupt is a signal to the CPU which is emitted by hardware or software. After getting such a signal, the CPU suspends the current instruction sequence, saves its state and transfers control to the interrupt handler. After the interrupt handler has finished it's work, it transfers control back to the interrupted instruction. Non-maskable interrupts (NMI) are interrupts which are always processed, independently of permission. They cannot be ignored and are typically used to signal for non-recoverable hardware errors. We will not dive into the details of interrupts now but we will be discussing them in the coming posts.
+interrupt는 hardware 혹은 software가 발신하는 CPU에 전달되는 signal입니다. 그러한 signal이 전달되면, CPU는 현재의 instruction sequence를 중단하고, 현재 state를 저장하고 control을 interrupt handler로 옮깁니다. interrupt handler가 해당 작업을 완료한 후, control이 interrupt된 instruction으로 돌아옵니다. Non-maskable interrupts (NMI)는 permission과 무관하게 항상 처리되는 interrupt입니다. 이것은 무시될 수 없으며 non-recoverable hardware errors를 위해 사용됩니다. 지금 당장 interrupt에 대해 상세히 다루지는 않지만 이후 post에서 논의할 것입니다.
 
-Let's get back to the code. We can see in the second line that we are writing the byte `0x80` (disabled bit) to `0x70` (the CMOS Address register). After that, a call to the `io_delay` function occurs. `io_delay` causes a small delay and looks like:
+code로 돌아가 봅시다. 두번째 line에서 `0x80` (disabled bit)을 `0x70` (CMOOS address register)에 쓰는 것을 볼 수 있습니다. 이후, `io_delay` 함수 호출이 일어납니다. `io_delay`는 다음과 같이 작은 delay를 일으킵니다:
 
 ```C
 static inline void io_delay(void)
@@ -311,9 +311,9 @@ static inline void io_delay(void)
 }
 ```
 
-To output any byte to the port `0x80` should delay exactly 1 microsecond. So we can write any value (the value from `AL` in our case) to the `0x80` port. After this delay the `realmode_switch_hook` function has finished execution and we can move to the next function.
+`0x80` port로 어떤 byte를 출력하기 위해서는 1 microsecond의 delay가 필요합니다. 그래서 어떤 값 (위에서는 `AL`의 값) 을 `0x80` port에 쓸 수 있습니다. 이 delay 이후 `realmode_switch_hook` 함수가 끝나고 다음 함수로 이동합니다.
 
-The next function is `enable_a20`, which enables the [A20 line](http://en.wikipedia.org/wiki/A20_line). This function is defined in [arch/x86/boot/a20.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/a20.c) and it tries to enable the A20 gate with different methods. The first is the `a20_test_short` function which checks if A20 is already enabled or not with the `a20_test` function:
+다음 함수는 `enable_a20`이며, 이것은 [A20 line](http://en.wikipedia.org/wiki/A20_line)을 enable합니다. 이 함수는 [arch/x86/boot/a20.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/a20.c)에 정의되어 있으며 이것은 몇가지 다른 방법으로 A20 gate를 enable시킵니다. 먼저 `a20_test_short` 함수가 `a20_test` 함수를 통해 A20이 이미 enable되어 있는지를 확인합니다:
 
 ```C
 static int a20_test(int loops)
@@ -339,13 +339,13 @@ static int a20_test(int loops)
 }
 ```
 
-First of all, we put `0x0000` in the `FS` register and `0xffff` in the `GS` register. Next, we read the value at the address `A20_TEST_ADDR` (it is `0x200`) and put this value into the variables `saved` and `ctr`.
+먼저 `FS` register에 `0x0000`을 설정하고 `GS` register에 `0xffff`를 설정합니다. 다음으로 `A20_TEST_ADDR` (`0x200`) address의 값을 읽고 그 값을 변수 `saved`와 `ctr`에 저장합니다.
 
-Next, we write an updated `ctr` value into `fs:A20_TEST_ADDR` or `fs:0x200` with the `wrfs32` function, then delay for 1ms, and then read the value from the `GS` register into the address `A20_TEST_ADDR+0x10`. In a case when `a20` line is disabled, the address will be overlapped, in other case if it's not zero `a20` line is already enabled the A20 line.
+다음으로 `wrfs32` 함수로 update된 `ctr`의 값을 `fs:A20_TEST_ADDR` 혹은 `fs:0x200`에 쓰고 1ms의 delay를 주고 `GS` register로부터 값을 읽어 `A20_TEST_ADDR+0x10`에 씁니다. `a20` line이 disable되어 있다면 address가 overlap되고, 그렇지 않고 0이 아닌 경우 `a20` line은 이미 enable된 것입니다.
 
-If A20 is disabled, we try to enable it with a different method which you can find in `a20.c`. For example, it can be done with a call to the `0x15` BIOS interrupt with `AH=0x2041`.
+만약 A20이 disable되어 있으면, `a20.c`에서 찾을 수 있는 다른 방법으로 enable을 시도합니다. 예를 들면, `AH=0x2041`로 설정하고 `0x15` BIOS interrupt를 수행할 수 있습니다.
 
-If the `enable_a20` function finished with a failure, print an error message and call the function `die`. You can remember it from the first source code file where we started - [arch/x86/boot/header.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/header.S):
+만약 `enable_a20` 함수가 실패로 끝나면, error message를 출력하고 `die` 함수를 호출합니다. 이것은 우리가 살펴본 첫 source code - [arch/x86/boot/header.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/header.S)에 정의되어 있습니다:
 
 ```assembly
 die:
@@ -354,30 +354,30 @@ die:
 	.size	die, .-die
 ```
 
-After the A20 gate is successfully enabled, the `reset_coprocessor` function is called:
+A20 gate가 성공적으로 enable된 후, `reset_coprocessor` 함수가 호출됩니다:
 
 ```C
 outb(0, 0xf0);
 outb(0, 0xf1);
 ```
 
-This function clears the Math Coprocessor by writing `0` to `0xf0` and then resets it by writing `0` to `0xf1`.
+이 함수는 `0`을 `0xf0`에 써서 Math Coprocessor를 clear하고 `0`을 `0xf1`에 써서 reset시킵니다.
 
-After this, the `mask_all_interrupts` function is called:
+이후, `mask_all_interrupts` 함수가 호출됩니다:
 
 ```C
 outb(0xff, 0xa1);       /* Mask all interrupts on the secondary PIC */
 outb(0xfb, 0x21);       /* Mask all but cascade on the primary PIC */
 ```
 
-This masks all interrupts on the secondary PIC (Programmable Interrupt Controller) and primary PIC except for IRQ2 on the primary PIC.
+이것은 primary PIC (Programmable Interrupt Controller) 상의 IRQ2를 제외한 secondary PIC와 primary PIC의 모든 interrupt를 mask합니다.
 
-And after all of these preparations, we can see the actual transition into protected mode.
+이러한 모든 준비 후, 실제 protected mode로의 천이를 시작합니다.
 
 Set up the Interrupt Descriptor Table
 --------------------------------------------------------------------------------
 
-Now we set up the Interrupt Descriptor table (IDT) in the `setup_idt` function:
+이제 `setup_idt` 함수에서 Interrupt Descriptor Table (IDT)를 설정합니다:
 
 ```C
 static void setup_idt(void)
@@ -387,7 +387,7 @@ static void setup_idt(void)
 }
 ```
 
-which sets up the Interrupt Descriptor Table (describes interrupt handlers and etc.). For now, the IDT is not installed (we will see it later), but now we just load the IDT with the `lidtl` instruction. `null_idt` contains the address and size of the IDT, but for now they are just zero. `null_idt` is a `gdt_ptr` structure, it is defined as:
+이것은 (interrupt handler 등을 기술하는) Interrupt Descriptor Table을 설정합니다. 지금은 IDT는 설정되어 있지 않지만 (이후 살펴볼 것입니다), `lidtl` instruction으로 IDT를 load합니다. `null_idt`는 IDT의 address와 size를 포함하고 있으나 현재 그냥 0으로 되어 있습니다. `null_idt`는 `gdt_ptr` structure로 하기와 같이 정의되어 있습니다:
 
 ```C
 struct gdt_ptr {
@@ -396,12 +396,12 @@ struct gdt_ptr {
 } __attribute__((packed));
 ```
 
-where we can see the 16-bit length(`len`) of the IDT and the 32-bit pointer to it (More details about the IDT and interruptions will be seen in the next posts). ` __attribute__((packed))` means that the size of `gdt_ptr` is the minimum required size. So the size of the `gdt_ptr` will be 6 bytes here or 48 bits. (Next we will load the pointer to the `gdt_ptr` to the `GDTR` register and you might remember from the previous post that it is 48-bits in size).
+이것은 IDT의 16-bit length (`len`)과 IDT를 가르키는 32-bit pointer로 구성되어 있습니다. (IDT와 interrupt에 대한 자세한 내용은 다음 post에서 살펴볼 것입니다) `__attribute__((packed))`는 `gdt_ptr`의 크기가 요구되어지는 최소 크기가 되는 것을 의미합니다. 그렇기 때문에 여기서 `gdt_ptr`의 크기는 6 bytes 혹은 48 bits가 됩니다. (다음에 `gdt_ptr`을 가르키는 pointer가 `GDTR` register에 load되는데, 이전 post에서 언급한 것처럼 이것은 48 bits 입니다)
 
 Set up Global Descriptor Table
 --------------------------------------------------------------------------------
 
-Next is the setup of the Global Descriptor Table (GDT). We can see the `setup_gdt` function which sets up the GDT (you can read about it in the post [Kernel booting process. Part 2.](linux-bootstrap-2.md#protected-mode)). There is a definition of the `boot_gdt` array in this function, which contains the definition of the three segments:
+다음은 Global Descriptor Table (GDT)의 설정입니다. GDT를 설정하는 `setup_gdt` 함수를 볼 수 있습니다. ([Kernel booting process. Part 2.](linux-bootstrap-2.md#protected-mode) post에서 살펴보았습니다) 이 함수에서는 3개의 segment의 선언을 포함하고 있는 `boot_gdt` array를 선언합니다:
 
 ```C
 static const u64 boot_gdt[] __attribute__((aligned(16))) = {
@@ -411,9 +411,9 @@ static const u64 boot_gdt[] __attribute__((aligned(16))) = {
 };
 ```
 
-for code, data and TSS (Task State Segment). We will not use the task state segment for now, it was added there to make Intel VT happy as we can see in the comment line (if you're interested you can find the commit which describes it - [here](https://github.com/torvalds/linux/commit/88089519f302f1296b4739be45699f06f728ec31)). Let's look at `boot_gdt`. First of all note that it has the `__attribute__((aligned(16)))` attribute. It means that this structure will be aligned by 16 bytes.
+이것들은 code, data 그리고 TSS (Task State Segment)를 위한 segment입니다. 여기서 Task State Segment는 사용되지 않지만, comment에서 볼 수 있는 것처럼 Intel VT를 만족하기 위해 추가되어 있습니다. (관련 commit은 [여기](https://github.com/torvalds/linux/commit/88089519f302f1296b4739be45699f06f728ec31)에 있습니다) `boot_gdt`를 살펴봅시다. 먼저 `__attribute__((aligned(16)))`의 attribute에 주목해 주십시요. 이것은 이 structure는 16 bytes에 align된다는 것을 의미합니다.
 
-Let's look at a simple example:
+간단한 예제를 살펴봅시다:
 
 ```C
 #include <stdio.h>
@@ -438,7 +438,7 @@ int main(void)
 }
 ```
 
-Technically a structure which contains one `int` field must be 4 bytes in size, but an `aligned` structure will need 16 bytes to store in memory:
+기술적으로 `int` field를 포함하는 structure는 4 bytes가 되어야 하지만, `aligned` structure는 memory 상에서 16 bytes를 필요로 합니다:
 
 ```
 $ gcc test.c -o test && test
@@ -446,52 +446,52 @@ Not aligned - 4
 Aligned - 16
 ```
 
-The `GDT_ENTRY_BOOT_CS` has index - 2 here, `GDT_ENTRY_BOOT_DS` is `GDT_ENTRY_BOOT_CS + 1` and etc. It starts from 2, because the first is a mandatory null descriptor (index - 0) and the second is not used (index - 1).
+`GDT_ENTRY_BOOT_CS`는 index - 여기서는 2 - 를 가지고 있고, `GDT_ENTRY_BOOT_DS`는 `GDT_ENTRY_BOOT_CS + 1`입니다. 첫번째는 mandatory null descriptor (index - 0)이고 두번째는 사용되지 않기 때문에 (index - 1), 이것은 2부터 시작합니다.
 
-`GDT_ENTRY` is a macro which takes flags, base, limit and builds a GDT entry. For example, let's look at the code segment entry. `GDT_ENTRY` takes the following values:
+`GDT_ENTRY`는 flags, base, limit를 받아 GDT entry를 생성하는 macro입니다. 예를 들면, code segment entry를 살펴봅시다. `GDT_ENTRY`는 다음과 같은 값을 받습니다:
 
 * base  - 0
 * limit - 0xfffff
 * flags - 0xc09b
 
-What does this mean? The segment's base address is 0, and the limit (size of segment) is - `0xfffff` (1 MB). Let's look at the flags. It is `0xc09b` and it will be:
+이것은 무엇을 의미할까요? segment의 base address는 0이고, limit (segment의 크기)는 `0xfffff` (1MB) 라는 것입니다. flags를 살펴봅시다. `0xc09b`는 2진수로 다음과 같습니다:
 
 ```
 1100 0000 1001 1011
 ```
 
-in binary. Let's try to understand what every bit means. We will go through all bits from left to right:
+각각의 bit의 의미를 이해해 봅시다. 좌측에서 우측으로 모든 bit을 살펴보겠습니다:
 
 * 1    - (G) granularity bit
-* 1    - (D) if 0 16-bit segment; 1 = 32-bit segment
-* 0    - (L) executed in 64-bit mode if 1
-* 0    - (AVL) available for use by system software
+* 1    - (D) 0이면 16-bit segment; 1이면 32-bit segment
+* 0    - (L) 1이면 64-bit mode로 실행
+* 0    - (AVL) system software로 사용
 * 0000 - 4-bit length 19:16 bits in the descriptor
-* 1    - (P) segment presence in memory
-* 00   - (DPL) - privilege level, 0 is the highest privilege
-* 1    - (S) code or data segment, not a system segment
+* 1    - (P) memory에서 segment의 presence
+* 00   - (DPL) - privilege level, 0은 가장 높은 privilege
+* 1    - (S) code 혹은 data segment, system segment는 아님
 * 101  - segment type execute/read/
 * 1    - accessed bit
 
-You can read more about every bit in the previous [post](linux-bootstrap-2.md) or in the [Intel® 64 and IA-32 Architectures Software Developer's Manuals 3A](http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html).
+이전 [post](linux-bootstrap-2.md) 혹은 [Intel® 64 and IA-32 Architectures Software Developer's Manuals 3A](http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html)에서 각 bit에 대해 더 자세한 내용을 읽을 수 있습니다.
 
-After this we get the length of the GDT with:
+이후 하기와 같이 GDT의 크기를 얻습니다:
 
 ```C
 gdt.len = sizeof(boot_gdt)-1;
 ```
 
-We get the size of `boot_gdt` and subtract 1 (the last valid address in the GDT).
+`boot_gdt`의 크기를 얻고 1을 뺍니다. (GDT에서 마지막 valid address)
 
-Next we get a pointer to the GDT with:
+다음으로 하기와 같이 GDT의 pointer를 얻습니다:
 
 ```C
 gdt.ptr = (u32)&boot_gdt + (ds() << 4);
 ```
 
-Here we just get the address of `boot_gdt` and add it to the address of the data segment left-shifted by 4 bits (remember we're in real mode now).
+여기서 단순히 `boot_gdt`의 address를 얻고 data segment의 address를 왼쪽으로 4 bits shift시킨 값을 더합니다. (현재 real mode라는 것을 기억하세요)
 
-Lastly we execute the `lgdtl` instruction to load the GDT into the GDTR register:
+마지막으로 GDT를 GDTR register에 load하기 위해 `lgdtl` instruction을 실행합니다:
 
 ```C
 asm volatile("lgdtl %0" : : "m" (gdt));
@@ -500,33 +500,33 @@ asm volatile("lgdtl %0" : : "m" (gdt));
 Actual transition into protected mode
 --------------------------------------------------------------------------------
 
-This is the end of the `go_to_protected_mode` function. We loaded the IDT and GDT, disabled interrupts and now can switch the CPU into protected mode. The last step is calling the `protected_mode_jump` function with two parameters:
+이것이 `go_to_protected_mode` 함수의 마지막입니다. IDT와 GDT를 load했고, interrupt를 disable했습니다. 이제 CPU를 protected mode로 전환할 수 있습니다. 마지막 step은 2개의 parameter로 `protected_mode_jump` 함수를 호출하는 것입니다:
 
 ```C
 protected_mode_jump(boot_params.hdr.code32_start, (u32)&boot_params + (ds() << 4));
 ```
 
-which is defined in [arch/x86/boot/pmjump.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/pmjump.S).
+이것은 [arch/x86/boot/pmjump.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/pmjump.S)에 정의되어 있습니다.
 
-It takes two parameters:
+이것은 다음의 2개의 parameter를 받습니다:
 
-* address of the protected mode entry point
-* address of `boot_params`
+* protected mode entry point의 address
+* `boot_params`의 address
 
-Let's look inside `protected_mode_jump`. As I wrote above, you can find it in `arch/x86/boot/pmjump.S`. The first parameter will be in the `eax` register and the second one is in `edx`.
+`protected_mode_jump`의 내부를 살펴봅시다. 위에서 쓴 것처럼 `arch/x86/boot/pmjump.S`에서 찾아볼 수 있습니다. 첫번째 parameter는 `eax` register에 있고 두번째 것은 `edx` register에 있을 것입니다.
 
-First of all, we put the address of `boot_params` in the `esi` register and the address of the code segment register `cs` in `bx`. After this, we shift `bx` by 4 bits and add it to the memory location labeled `2` (which is `(cs << 4) + in_pm32`, the physical address to jump after transitioned to 32-bit mode) and jump to label `1`. So after this `in_pm32` in label `2` will be overwritten with `(cs << 4) + in_pm32`.
+먼저 `boot_params`의 address를 `esi` register에 넣고 code segment register `cs`의 address를 `bx`에 넣습니다. 이후 `bx`를 4 bits shift시키고 `2` (이것은 `(cs << 4) + in_pm32`로 32-bit mode로 천이한 후 jump할 physical address 입니다)라고 label된 memory location에 더하고 label `1`로 jump합니다. 이후 `2`로 label되어 있는 `in_pm32`는 `(cs << 4) + in_pm32`로 overwrite됩니다.
 
-Next we put the data segment and the task state segment in the `cx` and `di` registers with:
+다음으로 data segment와 task state segment를 각각 `cx`와 `di` register에 넣습니다:
 
 ```assembly
 movw	$__BOOT_DS, %cx
 movw	$__BOOT_TSS, %di
 ```
 
-As you can read above `GDT_ENTRY_BOOT_CS` has index 2 and every GDT entry is 8 byte, so `CS` will be `2 * 8 = 16`, `__BOOT_DS` is 24 etc.
+위에서 보실수 있는 것처럼 `GDT_ENTRY_BOOT_CS`는 2개의 index를 가지고 있으며 각각의 GDT entry는 8 bytes이기 때문에 `CS`는 `2 * 8 = 16`, `__BOOT_DS`는 24가 됩니다.
 
-Next, we set the `PE` (Protection Enable) bit in the `CR0` control register:
+다음으로 `CR0` control register의 `PE` (Protection Enable) bit을 설정합니다:
 
 ```assembly
 movl	%cr0, %edx
@@ -534,7 +534,7 @@ orb	$X86_CR0_PE, %dl
 movl	%edx, %cr0
 ```
 
-and make a long jump to protected mode:
+그리고 protected mode로 long jump를 합니다:
 
 ```assembly
 	.byte	0x66, 0xea
@@ -542,21 +542,21 @@ and make a long jump to protected mode:
 	.word	__BOOT_CS
 ```
 
-where:
+여기서:
 
-* `0x66` is the operand-size prefix which allows us to mix 16-bit and 32-bit code
-* `0xea` - is the jump opcode
-* `in_pm32` is the segment offset under protect mode, which has value `(cs << 4) + in_pm32` derived from real mode
-* `__BOOT_CS` is the code segment we want to jump to.
+* `0x66`는 16-bit와 32-bit code의 mix를 허용하는 operand-size prefix이고
+* `0xea`는 jump opcode이고
+* `in_pm32`는 protected mode에서 segment offset으로, 그 값은 real mode에서 얻은 `(cs << 4) + in_pm32`이고
+* `__BOOT_CS`는 jump할 code segment입니다.
 
-After this we are finally in protected mode:
+이제 protected mode로 진입하였습니다:
 
 ```assembly
 .code32
 .section ".text32","ax"
 ```
 
-Let's look at the first steps taken in protected mode. First of all we set up the data segment with:
+protected mode에서 수행하는 첫번째 step을 살펴봅시다. 먼저 data segment를 다음과 같이 설정합니다:
 
 ```assembly
 movl	%ecx, %ds
@@ -566,15 +566,15 @@ movl	%ecx, %gs
 movl	%ecx, %ss
 ```
 
-If you paid attention, you can remember that we saved `$__BOOT_DS` in the `cx` register. Now we fill it with all segment registers besides `cs` (`cs` is already `__BOOT_CS`).
+`$__BOOT_DS`를 `cx` register에 저장한 것을 기억하실 수 있을 겁니다. `cs`를 제외한 모든 segment register를 이 값으로 채웁니다. (`cs`는 이미 `__BOOT_CS`입니다)
 
-And setup a valid stack for debugging purposes:
+그리고 debugging을 위해 유효한 stack을 설정합니다:
 
 ```assembly
 addl	%ebx, %esp
 ```
 
-The last step before the jump into 32-bit entry point is to clear the general purpose registers:
+32-bit entry point로 jump하기 전 마지막 step은 general purpose register를 clear하는 것입니다:
 
 ```assembly
 xorl	%ecx, %ecx
@@ -584,24 +584,24 @@ xorl	%ebp, %ebp
 xorl	%edi, %edi
 ```
 
-And jump to the 32-bit entry point in the end:
+그리고 마침내 32-bit entry point로 jump합니다:
 
 ```
 jmpl	*%eax
 ```
 
-Remember that `eax` contains the address of the 32-bit entry (we passed it as the first parameter into `protected_mode_jump`).
+`eax`가 32-bit entry의 address를 가지고 있다는 것을 기억하십시요. (`protected_mode_jump`의 첫번째 parameter로 전달했습니다)
 
-That's all. We're in protected mode and stop at its entry point. We will see what happens next in the next part.
+이것이 전부 입니다. protected mode로 진입했고 entry point에서 멈췄습니다. 다음 part에서 다음에 무엇이 일어날지 살펴볼 것입니다.
 
 Conclusion
 --------------------------------------------------------------------------------
 
-This is the end of the third part about linux kernel insides. In the next part, we will look at the first steps we take in protected mode and transition into [long mode](http://en.wikipedia.org/wiki/Long_mode).
+이것이 linux kernel insides의 세번째 part의 끝입니다. 다음 part에서는 protected mode에서 수행하는 첫번째 step과 [long mode](http://en.wikipedia.org/wiki/Long_mode)로의 천이를 살펴볼 것입니다.
 
-If you have any questions or suggestions write me a comment or ping me at [twitter](https://twitter.com/0xAX).
+질문이나 제안이 있으시면 comment나 [twitter](https://twitter.com/0xAX)로 연락주십시요.
 
-**Please note that English is not my first language, And I am really sorry for any inconvenience. If you find any mistakes, please send me a PR with corrections at [linux-insides](https://github.com/0xAX/linux-internals).**
+**영어는 저의 모국어가 아닙니다. 불편한 점이 있으셨다면 먼저 사죄드립니다. 만약 잘못된 점을 발견하시면 [linux-insides](https://github.com/0xAX/linux-internals)로 PR을 보내주십시요.**
 
 Links
 --------------------------------------------------------------------------------
