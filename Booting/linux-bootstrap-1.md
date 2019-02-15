@@ -195,9 +195,9 @@ Bootloader
 
 linux를 boot시킬 수 있는 [GRUB 2](https://www.gnu.org/software/grub/)이나 [syslinux](http://www.syslinux.org/wiki/index.php/The_Syslinux_Project) 같은 bootloader는 다수 존재합니다. linux kernel은 linux를 지원하는 bootloader 구현을 위한 요구 사항을 기술한 [Boot protocol](https://github.com/torvalds/linux/blob/v4.16/Documentation/x86/boot.txt)를 가지고 있습니다. 이 예는 GRUB 2에서 설명합니다.
 
-이전에 계속하여, 이제 `BIOS`는 boot device를 선택하고 control을 [boot.img](http://git.savannah.gnu.org/gitweb/?p=grub.git;a=blob;f=grub-core/boot/i386/pc/boot.S;hb=HEAD)로부터 실행을 시작하는 boot sector code로 넘깁니다. 이 code는 가용한 space의 제약으로 매우 간단한데, GRUB 2의 core image의 location으로 jump하기 위한 pointer를 가지고 있습니다. [diskboot.img](http://git.savannah.gnu.org/gitweb/?p=grub.git;a=blob;f=grub-core/boot/i386/pc/diskboot.S;hb=HEAD)로부터 시작되는 core image는 일반적으로 첫번째 sector 직후에 첫번째 partition 전의 사용되지 않는 sector에 저장됩니다. 위의 code는 GRUB 2의 kernel과 filesystem을 처리하기 위한 driver를 포함하는 core image의 나머지를 memory로 load합니다. core image의 나머지를 load한 이후, [grub_main](http://git.savannah.gnu.org/gitweb/?p=grub.git;a=blob;f=grub-core/kern/main.c) function을 수행합니다.
+이전에 계속하여, 이제 `BIOS`는 boot device를 선택하고 control을 [boot.img](http://git.savannah.gnu.org/gitweb/?p=grub.git;a=blob;f=grub-core/boot/i386/pc/boot.S;hb=HEAD)로부터 실행을 시작하는 boot sector code로 넘깁니다. 이 code는 가용한 space의 제약으로 매우 간단한데, GRUB 2의 core image의 location으로 jump하기 위한 pointer를 가지고 있습니다. [diskboot.img](http://git.savannah.gnu.org/gitweb/?p=grub.git;a=blob;f=grub-core/boot/i386/pc/diskboot.S;hb=HEAD)로부터 시작되는 core image는 일반적으로 첫번째 sector 직후에 첫번째 partition 전의 사용되지 않는 sector에 저장됩니다. 위의 code는 GRUB 2의 kernel과 filesystem을 처리하기 위한 driver를 포함하는 core image의 나머지를 memory로 load합니다. core image의 나머지를 load한 이후, [grub_main](http://git.savannah.gnu.org/gitweb/?p=grub.git;a=blob;f=grub-core/kern/main.c) 함수를 수행합니다.
 
-`grub_main`은 console을 초기화하고, modules의 base address을 얻고, root device를 설정하고, grub configuration file을 load/parse하고, modules을 load하는 등의 일을 합니다. 수행의 마지막에, `grub_main` function은 grub을 normal mode로 천이시킵니다. `grub_normal_execute` function (source code file의 `grub-core/normal/main.c`)은 마지막 준비를 마치고 operating system 선택 menu를 보여줍니다. grub menu entries중 하나를 선택하면, `grub_menu_execute_entry` function가 실행되어, grub `boot` command를 수행하고 선택된 operating system을 boot합니다.
+`grub_main`은 console을 초기화하고, modules의 base address을 얻고, root device를 설정하고, grub configuration file을 load/parse하고, modules을 load하는 등의 일을 합니다. 수행의 마지막에, `grub_main` 함수는 grub을 normal mode로 천이시킵니다. `grub_normal_execute` 함수(source code file의 `grub-core/normal/main.c`)는 마지막 준비를 마치고 operating system 선택 menu를 보여줍니다. grub menu entries중 하나를 선택하면, `grub_menu_execute_entry` 함수가 실행되어, grub `boot` command를 수행하고 선택된 operating system을 boot합니다.
 
 kernel boot protocol에서 읽을 수 있는 것처럼, bootloader는 kernel setup code로부터 offset `0x01f1`에서 시작되는 kernel setup header의 일부 fields를 읽고 채워줘야 합니다. 이 offset의 값을 확인하기 위해 boot [linker script](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/setup.ld)를 봐도 됩니다. kernel header [arch/x86/boot/header.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/header.S)는 다음과 같이 시작됩니다:
 
@@ -470,13 +470,13 @@ BSS section은 static하게 alloc되고 initialize되지 않은 data를 저장�
 Jump to main
 --------------------------------------------------------------------------------
 
-이것이 전부입니다 - stack과 BSS가 올바로 설정되었고, 이제 `main()` C function으로 jump할 수 있습니다:
+이것이 전부입니다 - stack과 BSS가 올바로 설정되었고, 이제 `main()` C 함수로 jump할 수 있습니다:
 
 ```assembly
     calll main
 ```
 
-`main()` function은 [arch/x86/boot/main.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c)에 위치해 있습니다. 이것이 무엇을 하는지 다음 part에서 읽으실 수 있습니다.
+`main()` 함수는 [arch/x86/boot/main.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c)에 위치해 있습니다. 이것이 무엇을 하는지 다음 part에서 읽으실 수 있습니다.
 
 Conclusion
 --------------------------------------------------------------------------------
