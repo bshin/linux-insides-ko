@@ -4,7 +4,7 @@ Kernel booting process. Part 2.
 First steps in the kernel setup
 --------------------------------------------------------------------------------
 
-이전 [part](linux-bootstrap-1.md)에서 linux kernel의 내부에 뛰어들어 kernel setup coode의 초기 부분을 보았습니다. [arch/x86/boot/main.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c)에서 `main` function (C로 쓰여진 첫 function)이 호출되는 것까지 보았습니다.
+이전 [part](linux-bootstrap-1.md)에서 linux kernel의 내부에 뛰어들어 kernel setup coode의 초기 부분을 보았습니다. [arch/x86/boot/main.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c)에서 `main` 함수(C로 쓰여진 첫 함수)가 호출되는 것까지 보았습니다.
 
 이 part에서는 kernel setup code에 대한 연구를 계속하고 하기 항목을 다룰 것입니다.
 * `protected mode` 가 무엇인지,
@@ -182,7 +182,7 @@ real mode에서 protected mode로 천이하기 위한 algorithm은 다음과 같
 Copying boot parameters into the "zeropage"
 --------------------------------------------------------------------------------
 
-"main.c"의 `main` routine부터 시작할 것입니다. `main`에서 호출되는 첫번째 function은 [`copy_boot_params(void)`](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c) 입니다. 이것은 kernel setup header를 [arch/x86/include/uapi/asm/bootparam.h](https://github.com/torvalds/linux/blob/v4.16/arch/x86/include/uapi/asm/bootparam.h) header file에 정의되어 있는 `boot_params` structure의 해당하는 field로 copy합니다.
+"main.c"의 `main` routine부터 시작할 것입니다. `main`에서 호출되는 첫번째 함수는 [`copy_boot_params(void)`](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c) 입니다. 이것은 kernel setup header를 [arch/x86/include/uapi/asm/bootparam.h](https://github.com/torvalds/linux/blob/v4.16/arch/x86/include/uapi/asm/bootparam.h) header file에 정의되어 있는 `boot_params` structure의 해당하는 field로 copy합니다.
 
 `boot_params` structure는 `struct setup_header hdr` field를 포함합니다. 이 structure는 [linux boot protocol](https://www.kernel.org/doc/Documentation/x86/boot.txt)에서 정의한 동일한 fields를 포함하고 있고, 이것은 bootloader와 kernel compile/build시 채워집니다. `copy_boot_params`는 두가지 일을 합니다:
 
@@ -190,7 +190,7 @@ Copying boot parameters into the "zeropage"
 
 2. kernel이 old command line protocol로 load된 경우 kernel command line으로의 pointer를 update합니다.
 
-이것은 [copy.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/copy.S) source file 정의되어 있는 `memcpy` function을 사용하여 `hdr`을 copy하는 것에 주목하십시요. 내부를 살펴 봅시다:
+이것은 [copy.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/copy.S) source file 정의되어 있는 `memcpy` 함수를 사용하여 `hdr`을 copy하는 것에 주목하십시요. 내부를 살펴 봅시다:
 
 ```assembly
 GLOBAL(memcpy)
@@ -210,9 +210,9 @@ GLOBAL(memcpy)
 ENDPROC(memcpy)
 ```
 
-네, 이제 막 C code로 왔는데 다시 assembly 입니다 :) 무엇보다도 먼저, `memcpy`와 여기서 정의된 다른 routines을 볼 수 있습니다. 시작과 끝은 다음의 2개의 marcros를 사용하고 있습니다: `GLOBAL`과 `ENDPROC`. `GLOBAL`은 `global` directive와 label이 정의되어 있는 [arch/x86/include/asm/linkage.h](https://github.com/torvalds/linux/blob/v4.16/arch/x86/include/asm/linkage.h)에 기술되어 있습니다. `ENDPROC`은 [include/linux/linkage.h](https://github.com/torvalds/linux/blob/v4.16/include/linux/linkage.h)에 기술되어 있고 `name` symbol이 function name으로 mark되어 있고 `name` symbol의 size로 끝납니다.
+네, 이제 막 C code로 왔는데 다시 assembly 입니다 :) 무엇보다도 먼저, `memcpy`와 여기서 정의된 다른 routines을 볼 수 있습니다. 시작과 끝은 다음의 2개의 marcros를 사용하고 있습니다: `GLOBAL`과 `ENDPROC`. `GLOBAL`은 `global` directive와 label이 정의되어 있는 [arch/x86/include/asm/linkage.h](https://github.com/torvalds/linux/blob/v4.16/arch/x86/include/asm/linkage.h)에 기술되어 있습니다. `ENDPROC`은 [include/linux/linkage.h](https://github.com/torvalds/linux/blob/v4.16/include/linux/linkage.h)에 기술되어 있고 `name` symbol이 함수 이름으로 mark되어 있고 `name` symbol의 size로 끝납니다.
 
-이 `memcpy`의 구현은 간단합니다. 처음에, `memcpy`에서 변경될 `si`와 `di` registers의 값을 stack에 push합니다. `arch/x86/Makefile`에서 `REALMOD_CFLAGS`에서 볼 수 있는 것처럼, kernel build system은 GCC의 `-mregparm=3` option을 사용합니다. 그렇기 때문에 functions은 처음 3개의 parameters를 `ax`, `dx`, 그리고 `cx` registers로부터 얻습니다. `memcpy`의 호출은 다음과 같습니다:
+이 `memcpy`의 구현은 간단합니다. 처음에, `memcpy`에서 변경될 `si`와 `di` registers의 값을 stack에 push합니다. `arch/x86/Makefile`에서 `REALMOD_CFLAGS`에서 볼 수 있는 것처럼, kernel build system은 GCC의 `-mregparm=3` option을 사용합니다. 그렇기 때문에 함수는 처음 3개의 parameters를 `ax`, `dx`, 그리고 `cx` registers로부터 얻습니다. `memcpy`의 호출은 다음과 같습니다:
 
 ```c
 memcpy(&boot_params.hdr, &hdr, sizeof hdr);
@@ -228,7 +228,7 @@ memcpy(&boot_params.hdr, &hdr, sizeof hdr);
 Console initialization
 --------------------------------------------------------------------------------
 
-`hdr`이 `boot_params.hdr`로 copy된 다음, 다음 step은 [arch/x86/boot/early_serial_console.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/early_serial_console.c)에 정의되어 있는 `console_init` function을 호출하여 console을 초기화하는 것입니다.
+`hdr`이 `boot_params.hdr`로 copy된 다음, 다음 step은 [arch/x86/boot/early_serial_console.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/early_serial_console.c)에 정의되어 있는 `console_init` 함수를 호출하여 console을 초기화하는 것입니다.
 
 그것은 command line에서 `earlyprintk` option을 찾고 그 option이 발견되면, serial port의 port address와 baud rate를 parse하여 serial port를 초기화합니다. `earlyprintk` command line option은 다음과 같이 될 수 있습니다:
 
@@ -243,7 +243,7 @@ if (cmdline_find_option_bool("debug"))
     puts("early console in setup code\n");
 ```
 
-`puts`의 정의는 [tty.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/tty.c)에 있습니다. 보시는 바와 같이 loop에서 `putchar` function을 호출하여 문자별로 출력합니다. `putchar`의 구현을 살펴봅시다:
+`puts`의 정의는 [tty.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/tty.c)에 있습니다. 보시는 바와 같이 loop에서 `putchar` 함수를 호출하여 문자별로 출력합니다. `putchar`의 구현을 살펴봅시다:
 
 ```C
 void __attribute__((section(".inittext"))) putchar(int ch)
@@ -276,7 +276,7 @@ static void __attribute__((section(".inittext"))) bios_putchar(int ch)
 }
 ```
 
-여기서 `initregs`는 `biosregs` structure를 인자로 받아 `memset` function을 사용하여 0으로 채우고 register의 값으로 채웁니다.
+여기서 `initregs`는 `biosregs` structure를 인자로 받아 `memset` 함수를 사용하여 0으로 채우고 register의 값으로 채웁니다.
 
 ```C
     memset(reg, 0, sizeof *reg);
@@ -306,20 +306,20 @@ GLOBAL(memset)
 ENDPROC(memset)
 ```
 
-위에서 읽을 수 있는 것처럼, 인자를 `ax`, `dx` 그리고 `cx` registers로 받는 `memcpy` function과 동일한 호출 관례를 사용합니다.
+위에서 읽을 수 있는 것처럼, 인자를 `ax`, `dx` 그리고 `cx` registers로 받는 `memcpy` 함수와 동일한 호출 관례를 사용합니다.
 
 `memset`의 구현은 `memcpy`와 유사합니다. `di` register의 값을 stack에 저장하고 `biosregs`의 address가 저장되어 있는 `ax`의 값을 `di`에 설정합니다. 다음은 `dl`의 값을 `eax` register의 하위 2 bytes로 복사하는 `movzbl` instruction입니다. `eax`의 남은 상위 2 bytes는 0으로 채워집니다.
 
 다음 instruction은 `eax`와 `0x01010101`을 곱합니다. 이것은 `memset`이 한번에 4 bytes를 복사하기 때문에 필요합니다. 예를 들면, `memset`으로 `0x7`이라는 값으로 4 bytes의 크기의 structure를 채운다면, `eax`는 `0x00000007`을 포함할 것 입니다. 그래서 `eax`에 `0x01010101`을 곱하여 `0x07070707`을 얻이 이 4 bytes를 structure에 복사하는 것입니다. `memset`은 `eax`를 `es:di`로 copy하기 위해 `rep; stosl` instruction을 사용합니다.
 
-`memset` function의 나머지는 `memcpy`와 거의 동일합니다.
+`memset` 함수의 나머지는 `memcpy`와 거의 동일합니다.
 
 `memset`을 이용하여 `biosregs` structure를 채운 후, `bios_putchar`은 문자를 출력하는 [0x10](http://www.ctyme.com/intr/rb-0106.htm) interrupt를 호출합니다. 그 후에 serial port가 초기화 되었는지 확인하고, 만약 초기화 되었다면 [serial_putchar](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/tty.c)과 `inb/outb` instructions으로 serial port에 문자를 출력합니다.
 
 Heap initialization
 --------------------------------------------------------------------------------
 
-[header.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/header.S) (이전 [part](linux-bootstrap-1.md) 참조)ㅇ서 stack과 bss section이 준비된 후, kernel은 [`init_heap`](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c) function으로 [heap](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c)을 초기화 합니다.
+[header.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/header.S) (이전 [part](linux-bootstrap-1.md) 참조)ㅇ서 stack과 bss section이 준비된 후, kernel은 [`init_heap`](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c) 함수로 [heap](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c)을 초기화 합니다.
 
 무엇보다도 먼저 `init_heap`은 kernel setup header에서 [`loadflags`](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/header.S#L320) structure로부터 [`CAN_USE_HEAP`](https://github.com/torvalds/linux/blob/v4.16/arch/x86/include/uapi/asm/bootparam.h#L24) flag를 확인하고 만약 이 flag가 set되어 있으면 stack의 end를 계산합니다.
 
@@ -346,9 +346,9 @@ Heap initialization
 CPU validation
 --------------------------------------------------------------------------------
 
-우리가 살펴 볼 다음 setp은 [arch/x86/boot/cpu.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/cpu.c) source code file의 `validate_cpu` function을 통한 cpu validation 입니다.
+우리가 살펴 볼 다음 setp은 [arch/x86/boot/cpu.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/cpu.c) source code file의 `validate_cpu` 함수를 통한 cpu validation 입니다.
 
-이 function은 [`check_cpu`](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/cpucheck.c) function를 호출하고 cpu level과 요구되어지는 cpu level을 넘겨서 kernel이 적절한 cpu level에서 실행되는지 확인합니다.
+이 함수는 [`check_cpu`](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/cpucheck.c) 함수를 호출하고 cpu level과 요구되어지는 cpu level을 넘겨서 kernel이 적절한 cpu level에서 실행되는지 확인합니다.
 
 ```C
 check_cpu(&cpu_level, &req_level, &err_flags);
@@ -358,9 +358,9 @@ if (cpu_level < req_level) {
 }
 ```
 
-`check_cpu` function은 CPU의 flags와 x86_64 (64-bit) CPU의 경우 [long mode](http://en.wikipedia.org/wiki/Long_mode) 가용 여부를 확인하고 processor의 vendor를 확인하고 AMD의 경우 SSE+SSE2를 끄는 등 특정 vendor를 위한 준비를 합니다.
+`check_cpu` 함수는 CPU의 flags와 x86_64 (64-bit) CPU의 경우 [long mode](http://en.wikipedia.org/wiki/Long_mode) 가용 여부를 확인하고 processor의 vendor를 확인하고 AMD의 경우 SSE+SSE2를 끄는 등 특정 vendor를 위한 준비를 합니다.
 
-다음으로 setup code가 CPU가 적절하다는 것을 확인한 후 `set_bios_mode` function이 호출되는 것을 볼 수 있습니다. 하기에서 보이는 것과 같이, 이 function은 `x86_64` mode에서만 구현되어 있습니다.
+다음으로 setup code가 CPU가 적절하다는 것을 확인한 후 `set_bios_mode` 함수가 호출되는 것을 볼 수 있습니다. 하기에서 보이는 것과 같이, 이 함수는 `x86_64` mode에서만 구현되어 있습니다.
 
 ```C
 static void set_bios_mode(void)
@@ -376,14 +376,14 @@ static void set_bios_mode(void)
 }
 ```
 
-`set_bios_mode` function는 (만약 `bx == 2`라면) [long mode](https://en.wikipedia.org/wiki/Long_mode)가 사용될 것이라고 BIOS에게 알리는 `0x15` BIOS interrupt를 실행합니다.
+`set_bios_mode` 함수는 (만약 `bx == 2`라면) [long mode](https://en.wikipedia.org/wiki/Long_mode)가 사용될 것이라고 BIOS에게 알리는 `0x15` BIOS interrupt를 실행합니다.
 
 Memory detection
 --------------------------------------------------------------------------------
 
-다음 step은 `detect_memory` function을 통한 memory detection 입니다. `detect_memory`는 기본적으로 가용한 RAM의 map을 CPU에 제공합니다. 이것은 `0xe820`, `0xe801` 그리고 `0x88` 과 같은 memory detection을 위한 상이한 programming interface를 사용합니다. 여기서는 오직 **0xE820** interface의 구현만 살펴볼 것입니다.
+다음 step은 `detect_memory` 함수를 통한 memory detection 입니다. `detect_memory`는 기본적으로 가용한 RAM의 map을 CPU에 제공합니다. 이것은 `0xe820`, `0xe801` 그리고 `0x88` 과 같은 memory detection을 위한 상이한 programming interface를 사용합니다. 여기서는 오직 **0xE820** interface의 구현만 살펴볼 것입니다.
 
-[arch/x86/boot/memory.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/memory.c) source file에서 `detect_memory_e820` function의 구현을 살펴봅시다. 무엇보다도 먼저 `detect_memory_e820` function은 하기에서 보이는 것 처럼 `biosregs`를 초기화하고 `0xe820` 호출을 위해 특별한 값으로 채웁니다:
+[arch/x86/boot/memory.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/memory.c) source file에서 `detect_memory_e820` 함수의 구현을 살펴봅시다. 무엇보다도 먼저 `detect_memory_e820` 함수는 하기에서 보이는 것 처럼 `biosregs`를 초기화하고 `0xe820` 호출을 위해 특별한 값으로 채웁니다:
 
 ```assembly
     initregs(&ireg);
@@ -393,7 +393,7 @@ Memory detection
     ireg.di  = (size_t)&buf;
 ```
 
-* `ax`는 function의 number를 포함합니다 (우리의 경우 0xe820)
+* `ax`는 함수의 number를 포함합니다 (우리의 경우 0xe820)
 * `cx`는 memory에 대한 data가 포함될 buffer의 size를 포함합니다
 * `edx`는 `SMAP` magic number를 포함해야 합니다
 * `es:di`는 memory data를 포함할 buffer의 address를 포함해야 합니다
@@ -406,7 +406,7 @@ Memory detection
     ireg.ebx = oreg.ebx;
 ```
 
-결국, 이 function은 address allocation table로부터 data를 수집하여 이 data를 `e820_entry` array에 기록합니다:
+결국, 이 함수는 address allocation table로부터 data를 수집하여 이 data를 `e820_entry` array에 기록합니다:
 
 * memory segment의 시작
 * memory segment의 size
@@ -427,7 +427,7 @@ Memory detection
 Keyboard initialization
 --------------------------------------------------------------------------------
 
-다음 step은 [`keyboard_init`](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c) function을 호출하여 keyboard를 초기화하는 것 입니다. 처음에 `keyboard_init`은 `initregs` function을 사용하여 registers를 초기화합니다. 그리고나서 keyboard의 status를 query하는 [0x16](http://www.ctyme.com/intr/rb-1756.htm) interrupt를 호출합니다.
+다음 step은 [`keyboard_init`](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/main.c) 함수를 호출하여 keyboard를 초기화하는 것 입니다. 처음에 `keyboard_init`은 `initregs` 함수를 사용하여 registers를 초기화합니다. 그리고나서 keyboard의 status를 query하는 [0x16](http://www.ctyme.com/intr/rb-1756.htm) interrupt를 호출합니다.
 
 ```c
     initregs(&ireg);
@@ -446,11 +446,11 @@ Keyboard initialization
 Querying
 --------------------------------------------------------------------------------
 
-다음 2개의 steps은 다른 parameters를 위한 queries 입니다. 이 queries에 대하여 자세히 다루지는 않을 것이지만 이후 part에서 살펴볼 것입니다. 이 functions에 대해 간단히 살펴봅시다:
+다음 2개의 steps은 다른 parameters를 위한 queries 입니다. 이 queries에 대하여 자세히 다루지는 않을 것이지만 이후 part에서 살펴볼 것입니다. 이 함수에 대해 간단히 살펴봅시다:
 
-첫번째 step은 `query_ist` function을 호출하여 [Intel SpeedStep](http://en.wikipedia.org/wiki/SpeedStep) 정보를 얻는 것입니다. 이것은 CPU level을 확인하고 적절하다면, 해당 정보를 얻는 `0x15`를 호출하여 결과를 `boot_params`에 저장합니다.
+첫번째 step은 `query_ist` 함수를 호출하여 [Intel SpeedStep](http://en.wikipedia.org/wiki/SpeedStep) 정보를 얻는 것입니다. 이것은 CPU level을 확인하고 적절하다면, 해당 정보를 얻는 `0x15`를 호출하여 결과를 `boot_params`에 저장합니다.
 
-다음은 BIOS로부터 [Advanced Power Management](http://en.wikipedia.org/wiki/Advanced_Power_Management) 정보를 얻는 [query_apm_bios](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/apm.c#L21) function입니다. `query_apm_bios`도 `0x15` BIOS interrupt를 호출하지만, `ah` = `0x53`으로 `APM` 설치를 확인합니다. `0x15`의 실행이 완료되면, `query_apm_bios` functions은 `PM` signature (`0x504d` 이어야 함), carry flag (`APM`이 지원되는 경우 0이어야 함), `cx` register의 값 (0x02이면 protected mode interface가 지원됨)을 확인합니다.
+다음은 BIOS로부터 [Advanced Power Management](http://en.wikipedia.org/wiki/Advanced_Power_Management) 정보를 얻는 [query_apm_bios](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/apm.c#L21) 함수입니다. `query_apm_bios`도 `0x15` BIOS interrupt를 호출하지만, `ah` = `0x53`으로 `APM` 설치를 확인합니다. `0x15`의 실행이 완료되면, `query_apm_bios` 함수는 `PM` signature (`0x504d` 이어야 함), carry flag (`APM`이 지원되는 경우 0이어야 함), `cx` register의 값 (0x02이면 protected mode interface가 지원됨)을 확인합니다.
 
 다음으로 `0x15`를 다시 호출하지만, `ax` = ``0x5304`로 `APM` interface를 끊고 32-bit protected mode interface로 연결합니다. 마지막으로, BIOS로부터 얻은 값으로 `boot_params.apm_bios_info`를 채웁니다.
 
@@ -462,7 +462,7 @@ Querying
 #endif
 ```
 
-마지막은 [`query_edd`](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/edd.c#L122) function로, 이것은 BIOS로부터 `Enhanced Disk Drive` 정보를 질의합니다. `query_edd`의 구현을 살펴봅시다.
+마지막은 [`query_edd`](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/edd.c#L122) 함수로, 이것은 BIOS로부터 `Enhanced Disk Drive` 정보를 질의합니다. `query_edd`의 구현을 살펴봅시다.
 
 무엇보다도 먼저, kernel의 command line으로부터 [edd](https://github.com/torvalds/linux/blob/v4.16/Documentation/admin-guide/kernel-parameters.rst) option을 읽고 `off`로 되어 있으면 그냥 `query_edd`를 return합니다.
 
@@ -481,12 +481,12 @@ for (devno = 0x80; devno < 0x80+EDD_MBR_SIG_MAX; devno++) {
     }
 ```
 
-여기서 `0x80`은 첫번째 hard drive이고 `EDD_MBR_SIG_MAX` macro는 16입니다. 이 function은 data를 [edd_info](https://github.com/torvalds/linux/blob/v4.16/include/uapi/linux/edd.h) structures array로 수집합니다. `get_edd_info`는 `ah`를 `0x41`로 하고 `0x13` interrupt를 호출하여 EDD가 가용함을 확인하고 EDD가 가용하면, `get_edd_info`는 `ah`를 `0x48`로 하고 `si`에 EDD 정보를 저장할 buffer의 address를 설정하여 `0x13` interrupt를 다시 호출합니다.
+여기서 `0x80`은 첫번째 hard drive이고 `EDD_MBR_SIG_MAX` macro는 16입니다. 이 함수는 data를 [edd_info](https://github.com/torvalds/linux/blob/v4.16/include/uapi/linux/edd.h) structures array로 수집합니다. `get_edd_info`는 `ah`를 `0x41`로 하고 `0x13` interrupt를 호출하여 EDD가 가용함을 확인하고 EDD가 가용하면, `get_edd_info`는 `ah`를 `0x48`로 하고 `si`에 EDD 정보를 저장할 buffer의 address를 설정하여 `0x13` interrupt를 다시 호출합니다.
 
 Conclusion
 --------------------------------------------------------------------------------
 
-이것이 linux kernel의 내부에 대한 두번째 part의 끝입니다. 다음 part에서는 video mode setting과 protected mode로 천이하기 전 나머지 준비와 protected mode로의 천이를 살펴볼 것입니다.
+이것이 linux kernel insides의 두번째 part의 끝입니다. 다음 part에서는 video mode setting과 protected mode로 천이하기 전 나머지 준비와 protected mode로의 천이를 살펴볼 것입니다.
 
 질문이나 제안이 있으시면 comment나 [twitter](https://twitter.com/0xAX)로 연락주십시요.
 
