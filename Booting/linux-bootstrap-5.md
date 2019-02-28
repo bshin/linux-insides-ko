@@ -4,12 +4,12 @@ Kernel booting process. Part 5.
 Kernel decompression
 --------------------------------------------------------------------------------
 
-This is the fifth part of the `Kernel booting process` series. We saw transition to the 64-bit mode in the previous [part](https://github.com/0xAX/linux-insides/blob/v4.16/Booting/linux-bootstrap-4.md#transition-to-the-long-mode) and we will continue from this point in this part. We will see the last steps before we jump to the kernel code as preparation for kernel decompression, relocation and directly kernel decompression. So... let's start to dive in the kernel code again.
+이것은 `Kernel booting process` series의 다섯번째 part입니다. 이전 [part](https://github.com/0xAX/linux-insides/blob/v4.16/Booting/linux-bootstrap-4.md#transition-to-the-long-mode)에서 64-bit mode로 천이하는 것을 살펴보았고 이 part에서는 여기서부터 이어 나갈 것입니다. kernel code로 jump하기 전 step인 kernel 압축 해제 준비, relocation과 kernel 압축 해제 등을 살펴 볼 것입니다. 다시 kernel code로 뛰어 들어 봅시다.
 
 Preparation before kernel decompression
 --------------------------------------------------------------------------------
 
-We stopped right before the jump on the `64-bit` entry point - `startup_64` which is located in the [arch/x86/boot/compressed/head_64.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/head_64.S) source code file. We already saw the jump to the `startup_64` in the `startup_32`:
+`64-bit` entry point - [arch/x86/boot/compressed/head_64.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/head_64.S) source code file에 위치해 있는 `startup_64`로 jump하기 직전에 멈췄습니다. `startup_32`에서 `startup_64`로 jump하는 것은 이전 part에서 이미 살펴보았습니다:
 
 ```assembly
 	pushl	$__KERNEL_CS
@@ -24,7 +24,7 @@ We stopped right before the jump on the `64-bit` entry point - `startup_64` whic
 	lret
 ```
 
-in the previous part. Since we loaded the new `Global Descriptor Table` and there was CPU transition in other mode (`64-bit` mode in our case), we can see the setup of the data segments:
+새로운 `Global Descriptor Table`이 load되었고 CPU가 다른 mode (이 경우 `64-bit` mode)로 천이되었기 때문에, `startup_64`의 시작 부분에서 data segments를 setup하는 것을 볼 수 있습니다:
 
 ```assembly
 	.code64
@@ -38,9 +38,9 @@ ENTRY(startup_64)
 	movl	%eax, %gs
 ```
 
-in the beginning of the `startup_64`. All segment registers besides `cs` register now reseted as we joined into the `long mode`.
+이제 `cs` register를 제외한 모든 segment registers들이 `long mode`로 천이되었을 때와 같이 reset되었습니다.
 
-The next step is computation of difference between where the kernel was compiled and where it was loaded:
+다음 step은 kernel이 compile된 address와 load된 address의 차이를 계산하는 것입니다:
 
 ```assembly
 #ifdef CONFIG_RELOCATABLE
@@ -60,9 +60,9 @@ The next step is computation of difference between where the kernel was compiled
 	addq	%rbp, %rbx
 ```
 
-The `rbp` contains the decompressed kernel start address and after this code executes `rbx` register will contain address to relocate the kernel code for decompression. We already saw code like this in the `startup_32` ( you can read about it in the previous part - [Calculate relocation address](https://github.com/0xAX/linux-insides/blob/v4.16/Booting/linux-bootstrap-4.md#calculate-relocation-address)), but we need to do this calculation again because the bootloader can use 64-bit boot protocol and `startup_32` just will not be executed in this case.
+`rbp`는 압축 해제된 kernel의 start address를 가지고 있고 이 code가 실행된 후 `rbx` register는 압축 해제를 위해 kernel code가 relocate될 address를 가지게 될것 입니다. 이미 이와 유사한 code를 `startup_32`에서 살펴보았습니다. (이전 part - [Calculate relocation address](https://github.com/0xAX/linux-insides/blob/v4.16/Booting/linux-bootstrap-4.md#calculate-relocation-address)에서 관련 내용을 확인할 수 있습니다) 하지만, bootloader가 64-bit boot protocol을 사용해서 `startup_32`가 실행되지 않았을 수도 있기 때문에 이 계산을 다시 해야 합니다.
 
-In the next step we can see setup of the stack pointer, resetting of the flags register and setup `GDT` again because of in a case of `64-bit` protocol `32-bit` code segment can be omitted by bootloader:
+다음 step은 stack pointer의 설정입니다. bootloader가 `64-bit` protocol을 사용하여 `32-bit` code segment가 누락되었을 수 있기 때문에 flags register를 reset하고 `GDT`를 다시 설정합니다:
 
 ```assembly
     leaq	boot_stack_end(%rbx), %rsp
@@ -75,9 +75,9 @@ In the next step we can see setup of the stack pointer, resetting of the flags r
     popfq
 ```
 
-If you look at the Linux kernel source code after `lgdt gdt64(%rip)` instruction, you will see that there is some additional code. This code builds trampoline to enable [5-level pagging](https://lwn.net/Articles/708526/) if need. We will consider only 4-level paging in this books, so this code will be omitted.
+`lgdt gdt64(%rip)` instruction 이후의 linux kernel source code를 살펴보면 추가적인 code가 있는 것을 알 수 있습니다. 이 code는 필요시 trampoline을 생성하고 [5-level pagging](https://lwn.net/Articles/708526/)을 enable합니다. 이 책에서는 오직 4-level paging만을 고려하기 때문에 이 code는 생략하겠습니다.
 
-As you can see above, the `rbx` register contains the start address of the kernel decompressor code and we just put this address with `boot_stack_end` offset to the `rsp` register which represents pointer to the top of the stack. After this step, the stack will be correct. You can find definition of the `boot_stack_end` in the end of [arch/x86/boot/compressed/head_64.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/head_64.S) assembly source code file:
+위에서 보시는 것과 같이 `rbx` register는 kernel 압축 해제를 위한 code의 시작 address를 가지고 있고 이 address의 `boot_stack_end` offset의 값을 stack의 top을 가르키는 pointer로서 `rsp` register에 넣습니다. 이 step 후에 stack은 적절하게 설정된 것입니다. `boot_stack_end`는 [arch/x86/boot/compressed/head_64.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/head_64.S) assembly source code file의 마지막 부분에 정의되어 있습니다:
 
 ```assembly
 	.bss
@@ -89,9 +89,9 @@ boot_stack:
 boot_stack_end:
 ```
 
-It located in the end of the `.bss` section, right before the `.pgtable`. If you will look into [arch/x86/boot/compressed/vmlinux.lds.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/vmlinux.lds.S) linker script, you will find  Definition of the `.bss` and `.pgtable` there.
+이것은 `.bss` section의 마지막 부분에  `.pgtable` 직전에 위치해 있습니다. [arch/x86/boot/compressed/vmlinux.lds.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/vmlinux.lds.S) linker script를 보시면 `.bss`와 `.pgtable`의 정의를 찾아볼 수 있습니다.
 
-As we set the stack, now we can copy the compressed kernel to the address that we got above, when we calculated the relocation address of the decompressed kernel. Before details, let's look at this assembly code:
+stack을 설정하였으니, 이제 압축된 kernel을 위에서 계산한 압축 해제된 kernel의 relocation address로 복사할 수 있습니다. 자세한 내용을 다루기 전에 하기의 assembly code를 살펴봅시다:
 
 ```assembly
 	pushq	%rsi
@@ -105,9 +105,9 @@ As we set the stack, now we can copy the compressed kernel to the address that w
 	popq	%rsi
 ```
 
-First of all we push `rsi` to the stack. We need preserve the value of `rsi`, because this register now stores a pointer to the `boot_params` which is real mode structure that contains booting related data (you must remember this structure, we filled it in the start of kernel setup). In the end of this code we'll restore the pointer to the `boot_params` into `rsi` again. 
+먼저 `rsi`를 stack에 push합니다. `rsi` register는 booting 관련 data를 가지는 real mode structure인 `boot_params` (기억하시겠지만, kernel setup의 시작 부분에서 이 structure에 값을 채웠습니다)의 pointer를 저장할 것이기 때문에 이 register의 값을 보존해야 합니다. 이 code의 끝에 `boot_params`의 pointer를 가진 `rsi`의 값을 다시 복구할겁니다.
 
-The next two `leaq` instructions calculates effective addresses of the `rip` and `rbx` with `_bss - 8` offset and put it to the `rsi` and `rdi`. Why do we calculate these addresses? Actually the compressed kernel image is located between this copying code (from `startup_32` to the current code) and the decompression code. You can verify this by looking at the linker script - [arch/x86/boot/compressed/vmlinux.lds.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/vmlinux.lds.S):
+다음 두개의 `leaq` instructions은 `_bss - 8` offset으로 `rip`와 `rbx`의 유효한 address를 계산하고 이것을 `rsi`와 `rdi`에 넣습니다. 왜 이 address를 계산해야 할까요? 실제 압축된 kernel image는 이 복사하는 code (`startup_32`부터 현재 code까지)와 압축을 해제하는 code 사이에 위치합니다. linker script - [arch/x86/boot/compressed/vmlinux.lds.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/vmlinux.lds.S)에서 확인해 볼 수 있습니다:
 
 ```
 	. = 0;
@@ -127,7 +127,7 @@ The next two `leaq` instructions calculates effective addresses of the `rip` and
 	}
 ```
 
-Note that `.head.text` section contains `startup_32`. You may remember it from the previous part:
+`.head.text` section이 `startup_32`를 포함한다는 것에 주목하십시요. 이전 part에서 하기의 code를 기억하실 겁니다:
 
 ```assembly
 	__HEAD
@@ -138,7 +138,7 @@ ENTRY(startup_32)
 ...
 ```
 
-The `.text` section contains decompression code:
+`.text` section은 압축 해제 code를 포함합니다:
 
 ```assembly
 	.text
@@ -152,11 +152,11 @@ relocated:
 ...
 ```
 
-And `.rodata..compressed` contains the compressed kernel image. So `rsi` will contain the absolute address of `_bss - 8`, and `rdi` will contain the relocation relative address of `_bss - 8`. As we store these addresses in registers, we put the address of `_bss` in the `rcx` register. As you can see in the `vmlinux.lds.S` linker script, it's located at the end of all sections with the setup/kernel code. Now we can start to copy data from `rsi` to `rdi`, `8` bytes at the time, with the `movsq` instruction. 
+그리고 `.rodata..compressed`는 압축된 kernel image를 포함합니다. `rsi`는 `_bss - 8`의 절대 address를 가지고 있고 `rdi`는 `_bss - 8`의 relocation 상대 address를 가지고 있습니다. 이러한 address를 register에 저장할때 `rcx` register에 `_bss`의 address를 저장했습니다. `vmlinux.lds.S` linker script에서 보시는 것처럼 이것은 setup/kernel code와 모든 section의 뒤에 위치합니다. 이제 `rsi`에서 `rdi`로 `movsq` instruction을 사용하여 한번에 8 bytes씩 data 복사를 시작할 수 있습니다.
 
-Note that there is an `std` instruction before data copying: it sets the `DF` flag, which means that `rsi` and `rdi` will be decremented. In other words, we will copy the bytes backwards. At the end, we clear the `DF` flag with the `cld` instruction, and restore `boot_params` structure to `rsi`.
+data를 복사하기 전 `std` instruction이 있다는 것에 주목하십시요: 이것은 `rsi`와 `rdi`가 감소한다는 것을 의미하는 `DF` flag를 설정합니다. 즉, 복사는 뒤에서 부터 진행됩니다. 마지막으로 `cld` instruction을 사용하여 `DF` flag를 clear하고 `boot_params` structure를 `rsi`로 복구합니다.
 
-Now we have the address of the `.text` section address after relocation, and we can jump to it:
+이제 relocation후 `.text` section의 address를 확인했고, 그곳으로 jump합니다:
 
 ```assembly
 	leaq	relocated(%rbx), %rax
@@ -166,7 +166,7 @@ Now we have the address of the `.text` section address after relocation, and we 
 Last preparation before kernel decompression
 --------------------------------------------------------------------------------
 
-In the previous paragraph we saw that the `.text` section starts with the `relocated` label. The first thing it does is clearing the `bss` section with:
+이전 문단에서 `relocated` label로 시작되는 `.text` section을 보았습니다. 그것이 하는 첫번째 일은 `bss` section을 clear하는 것입니다:
 
 ```assembly
 	xorl	%eax, %eax
