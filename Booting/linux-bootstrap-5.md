@@ -177,9 +177,9 @@ Last preparation before kernel decompression
 	rep	stosq
 ```
 
-We need to initialize the `.bss` section, because we'll soon jump to [C](https://en.wikipedia.org/wiki/C_%28programming_language%29) code. Here we just clear `eax`, put the address of `_bss` in `rdi` and `_ebss` in `rcx`, and fill it with zeros with the `rep stosq` instruction.
+이제 곧 [C](https://en.wikipedia.org/wiki/C_%28programming_language%29) code로 jump할 것이기 때문에 `.bss` section을 초기화해야 합니다. 여기서 `eax`를 clear하고 `_bss`의 address를 `rdi`에 넣고 `_ebss`의 address를 `rcx`에 넣고 `rep stosq` instruction을 사용하여 0으로 채웁니다.
 
-At the end, we can see the call to the `extract_kernel` function:
+마침내 `extract_kernel` 함수를 호출하는 것을 볼 수 있습니다:
 
 ```assembly
 	pushq	%rsi
@@ -193,49 +193,49 @@ At the end, we can see the call to the `extract_kernel` function:
 	popq	%rsi
 ```
 
-Again we set `rdi` to a pointer to the `boot_params` structure and preserve it on the stack. In the same time we set `rsi` to point to the area which should be used for kernel uncompression. The last step is preparation of the `extract_kernel` parameters and call of this function which will uncompres the kernel. The `extract_kernel` function is defined in the  [arch/x86/boot/compressed/misc.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/misc.c) source code file and takes six arguments:
+다시 `rdi`에 `boot_param` structure를 가르키는 pointer를 넣고 그것을 stack에 보존합니다. 동시에 `rsi`에 kernel 압축 해제에 사용될 영역의 pointer를 넣습니다. 마지막 step은 `extract_kernel`의 parameters를 준비하고 kernel의 압축을 해제하는 이 함수를 호출하는 것입니다. `extract_kernel` 함수는 [arch/x86/boot/compressed/misc.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/misc.c) source code file에 정의되어 있고 6개의 arguments를 받습니다:
 
-* `rmode` - pointer to the [boot_params](https://github.com/torvalds/linux/blob/v4.16/arch/x86/include/uapi/asm/bootparam.h) structure which is filled by bootloader or during early kernel initialization;
-* `heap` - pointer to the `boot_heap` which represents start address of the early boot heap;
-* `input_data` - pointer to the start of the compressed kernel or in other words pointer to the `arch/x86/boot/compressed/vmlinux.bin.bz2`;
-* `input_len` - size of the compressed kernel;
-* `output` - start address of the future decompressed kernel;
-* `output_len` - size of decompressed kernel;
+* `rmode` - bootloader나 early kernel initialization에서 채워지는 [boot_params](https://github.com/torvalds/linux/blob/v4.16/arch/x86/include/uapi/asm/bootparam.h) structure를 가르키는 pointer;
+* `heap` - early boot heap의 시작 address를 나타내는 `boot_heap`을 가르키는 pointer;
+* `input_data` - 압축된 kernel의 시작을 가르키는 pointer 즉 `arch/x86/boot/compressed/vmlinux.bin.bz2`을 가르키는 pointer;
+* `input_len` - 압축된 kernel의 size;
+* `output` - 압으로 압축 해제된 kernel의 시작 address;
+* `output_len` - 압축 해제된 kernel의 size;
 
-All arguments will be passed through the registers according to [System V Application Binary Interface](http://www.x86-64.org/documentation/abi.pdf). We've finished all preparation and can now look at the kernel decompression.
+[System V Application Binary Interface](http://www.x86-64.org/documentation/abi.pdf)에 따라 모든 arguments는 register로 전달됩니다. 모든 준비가 끝났고 이제 kernel 압축 해제를 살펴볼 수 있습니다.
 
 Kernel decompression
 --------------------------------------------------------------------------------
 
-As we saw in previous paragraph, the `extract_kernel` function is defined in the [arch/x86/boot/compressed/misc.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/misc.c) source code file and takes six arguments. This function starts with the video/console initialization that we already saw in the previous parts. We need to do this again because we don't know if we started in [real mode](https://en.wikipedia.org/wiki/Real_mode) or a bootloader was used, or whether the bootloader used the `32` or `64-bit` boot protocol.
+이전 문단에서 살펴본 것처럼, `extract_kernel` 함수는 [arch/x86/boot/compressed/misc.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/misc.c) source code file에 정의되어 있고 6개의 arguments를 받습니다. 이 함수는 이전 parts에서 이미 살펴본 video/console 초기화로 시작합니다. 이것은 [real mode](https://en.wikipedia.org/wiki/Real_mode)에서 시작되었는지, bootloader가 사용되었는지, bootloader가 `32` 혹은 `64-bit` boot protocol을 사용했는지 알 수 없기 때문에 필요합니다.
 
-After the first initialization steps, we store pointers to the start of the free memory and to the end of it:
+첫번째 초기화 step 이후, free memory의 처음과 마지막의 pointers를 저장합니다:
 
 ```C
 free_mem_ptr     = heap;
 free_mem_end_ptr = heap + BOOT_HEAP_SIZE;
 ```
 
-where the `heap` is the second parameter of the `extract_kernel` function which we got in the [arch/x86/boot/compressed/head_64.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/head_64.S):
+여기서 `heap`은  `extract_kernel` 함수의 두번째 parameter이고 이것은 [arch/x86/boot/compressed/head_64.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/head_64.S)에서 얻었습니다:
 
 ```assembly
 leaq	boot_heap(%rip), %rsi
 ```
 
-As you saw above, the `boot_heap` is defined as:
+위에서 보는 것처럼 `boot_heap`이 정의됩니다:
 
 ```assembly
 boot_heap:
 	.fill BOOT_HEAP_SIZE, 1, 0
 ```
 
-where the `BOOT_HEAP_SIZE` is macro which expands to `0x10000` (`0x400000` in a case of `bzip2` kernel) and represents the size of the heap.
+여기서 `BOOT_HEAP_SIZE`는 `0x10000` (`bzip2` kernel이 경우 `0x400000`)로 확장되는 macro이며 heap의 size를 나타냅니다.
 
-After heap pointers initialization, the next step is the call of the `choose_random_location` function from [arch/x86/boot/compressed/kaslr.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/kaslr.c) source code file. As we can guess from the function name, it chooses the memory location where the kernel image will be decompressed. It may look weird that we need to find or even `choose` location where to decompress the compressed kernel image, but the Linux kernel supports [kASLR](https://en.wikipedia.org/wiki/Address_space_layout_randomization) which allows decompression of the kernel into a random address, for security reasons.
+heap pointers가 초기화된 후, 다음 step은 [arch/x86/boot/compressed/kaslr.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/kaslr.c) source code file의 `choose_random_location` 함수를 호출하는 것입니다. 함수 이름에서 추측할 수 있는 것처럼, 이것은 압축 해제된 kernel image의 memory location을 선택합니다. 압축된 kernel image를 압축 해제하는 찾는다거나 심지어 `choose`해야 한다는 것이 이상해 보일 수 있습니다만, linux kernel은 security 이유로 random한 address에 kernel의 압축 해제를 허용하는 [kASLR](https://en.wikipedia.org/wiki/Address_space_layout_randomization)을 지원하기 때문입니다.
 
-We will not consider randomization of the Linux kernel load address in this part, but will do it in the next part.
+이 part에서는 linux kernel load address의 randomization을 고려하지는 않을 것입니다만, 다음 part에서 살펴볼 것입니다.
 
-Now let's back to [misc.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/misc.c). After getting the address for the kernel image, there need to be some checks to be sure that the retrieved random address is correctly aligned and address is not wrong:
+이제 [misc.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/misc.c)로 돌아가 봅시다. kernel image를 위한 address를 얻은 후, 검색한 random address가 제대로 align되어 있는지와 address가 잘못되지 않았는지 확인이 필요합니다:
 
 ```C
 if ((unsigned long)output & (MIN_KERNEL_ALIGN - 1))
@@ -257,19 +257,19 @@ if (virt_addr != LOAD_PHYSICAL_ADDR)
 	error("Destination virtual address changed when not relocatable");
 ```
 
-After all these checks we will see the familiar message:
+이 모든 확인 후 익숙한 message를 볼 수 있습니다:
 
 ```
 Decompressing Linux... 
 ```
 
-and call the `__decompress` function:
+그리고 kernel의 압축을 해제하는 `++decompress` 함수를 호출합니다:
 
 ```C
 __decompress(input_data, input_len, NULL, NULL, output, output_len, NULL, error);
 ```
 
-which will decompress the kernel. The implementation of the `__decompress` function depends on what decompression algorithm was chosen during kernel compilation:
+`__decompress` 함수의 구현은 kernel compilation시 어떤 압축 해제 algorithm이 선택되었는지에 따라 달라집니다:
 
 ```C
 #ifdef CONFIG_KERNEL_GZIP
@@ -297,7 +297,7 @@ which will decompress the kernel. The implementation of the `__decompress` funct
 #endif
 ```
 
-After kernel is decompressed, the last two functions are `parse_elf` and `handle_relocations`. The main point of these functions is to move the uncompressed kernel image to the correct memory place. The fact is that the decompression will decompress [in-place](https://en.wikipedia.org/wiki/In-place_algorithm), and we still need to move kernel to the correct address. As we already know, the kernel image is an [ELF](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) executable, so the main goal of the `parse_elf` function is to move loadable segments to the correct address. We can see loadable segments in the output of the `readelf` program:
+kernel이 압축 해제된 후, 마지막 두 함수는 `parse_elf`와 `handle_relocations`입니다. 이 두 함수의 주 목적은 압축 해제된 kernel image를 적절한 memory 위치로 옮기는 것입니다. 사실 압축 해제는 [in-place](https://en.wikipedia.org/wiki/In-place_algorithm)에서 이루어지기 때문에 kernel을 적절한 address로 옮겨야 합니다. 이미 알고 있듯이 kernel image는 [ELF](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) executable로 `parse_elf` 함수는 loadable segments를 적절한 address로 옮깁니다. loadable segments는 `readelf` program의 출력에서 볼 수 있습니다:
 
 ```
 readelf -l vmlinux
@@ -319,7 +319,7 @@ Program Headers:
                  0x0000000000138000 0x000000000029b000  RWE    200000
 ```
 
-The goal of the `parse_elf` function is to load these segments to the `output` address we got from the `choose_random_location` function. This function starts with checking the [ELF](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) signature:
+`parse_elf` 함수의 목적은 이 segments를 `choose_random_location` function의 `output` address로 load하는 것입니다. 이 함수는 [ELF](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) signature를 확인하는 것으로 시작합니다:
 
 ```C
 Elf64_Ehdr ehdr;
@@ -336,7 +336,7 @@ if (ehdr.e_ident[EI_MAG0] != ELFMAG0 ||
 }
 ```
 
-and if it's not valid, it prints an error message and halts. If we got a valid `ELF` file, we go through all program headers from the given `ELF` file and copy all loadable segments with correct 2 megabytes aligned address to the output buffer:
+만약 signature가 valid하지 않다면, error message를 출력하고 halt합니다. 만약 valid한 `ELF` file이라면, `ELF` file의 모든 program headers를 지나 2 megabytes에 align된 모든 loadable segments를 output buffer로 copy합니다:
 
 ```C
 	for (i = 0; i < ehdr.e_phnum; i++) {
@@ -362,32 +362,32 @@ and if it's not valid, it prints an error message and halts. If we got a valid `
 	}
 ```
 
-That's all.
+이게 전부입니다.
 
-From this moment, all loadable segments are in the correct place.
+이 순간부터 모든 loadable segments는 적절한 위치에 있습니다.
 
-The next step after the `parse_elf` function is the call of the `handle_relocations` function. Implementation of this function depends on the `CONFIG_X86_NEED_RELOCS` kernel configuration option and if it is enabled, this function adjusts addresses in the kernel image, and is called only if the `CONFIG_RANDOMIZE_BASE` configuration option was enabled during kernel configuration. Implementation of the `handle_relocations` function is easy enough. This function subtracts value of the `LOAD_PHYSICAL_ADDR` from the value of the base load address of the kernel and thus we obtain the difference between where the kernel was linked to load and where it was actually loaded. After this we can perform kernel relocation as we know actual address where the kernel was loaded, its address where it was linked to run and relocation table which is in the end of the kernel image.
+`parse_elf` 함수 이후 다음 step은 `handle_relocations` 함수를 호출하는 것입니다. 이 함수의 구현은 `CONFIG_X86_NEED_RELOCS` kernel configuration option에 따라 달라집니다. 만약 이것이 enable되어 있으면 이 함수는 kernel image에서 address를 조정하는데, 이것은 kernel configuration에서 `CONFIG_RANDOMIZE_BASE` configuration option이 enable되어 있을 때만 호출됩니다. `handle_relocations` 함수의 구현은 굉장히 간단합니다. 이 함수는 kernel의 base load address의 값에서 `LOAD_PHYSICAL_ADDR`의 값을 빼서 kernel이 link될 때의 address와 실제 load된 address의 차를 얻습니다. 이후 kernel이 load된 실제 address와 수행되도록 link된 address와 kernel image의 마지막에 있는 relocation table을 알고 있기 때문에 kernel relocation을 수행할 수 있습니다.
 
-After the kernel is relocated, we return back from the `extract_kernel` to [arch/x86/boot/compressed/head_64.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/head_64.S).
+kernel을 relocate한 후 `extract_kernel`에서 [arch/x86/boot/compressed/head_64.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/head_64.S)로 돌아갑니다.
 
-The address of the kernel will be in the `rax` register and we jump to it:
+kernel의 address는 `rax` register에 있고 그곳으로 jump합니다:
 
 ```assembly
 jmp	*%rax
 ```
 
-That's all. Now we are in the kernel!
+이게 전부입니다. 이제 kernel에 진입하였습니다!
 
 Conclusion
 --------------------------------------------------------------------------------
 
-This is the end of the fifth part about linux kernel booting process. We will not see posts about kernel booting anymore (maybe updates to this and previous posts), but there will be many posts about other kernel internals. 
+이것이 linux kernel booting process의 다섯번째 part의 끝입니다. 이제 더이상 kernel booting에 대한 post는 없을 것입니다. (이전 post에 대한 update는 있을 수 있습니다) 하지만 다른 kernel internals에 대한 많은 post가 있을 것입니다.
 
-Next chapter will describe more advanced details about linux kernel booting process, like a load address randomization and etc.
+다음 chapter에서는 load address randomization 같은 linux kernel booting process의 고급 세부 사항을 기술할 것입니다.
 
-If you have any questions or suggestions write me a comment or ping me in [twitter](https://twitter.com/0xAX).
+질문이나 제안이 있으시면 comment를 남기시거나 [twitter](https://twitter.com/0xAX)로 알려 주십시요.
 
-**Please note that English is not my first language, And I am really sorry for any inconvenience. If you find any mistakes please send me PR to [linux-insides](https://github.com/0xAX/linux-internals).**
+**영어는 저의 모국어가 아닙니다. 불편한 점이 있으셨다면 먼저 사죄드립니다. 만약 잘못된 점을 발견하시면 [linux-insides](https://github.com/0xAX/linux-internals)로 PR을 보내주십시요.**
 
 Links
 --------------------------------------------------------------------------------
