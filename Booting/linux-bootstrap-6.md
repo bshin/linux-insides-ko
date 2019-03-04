@@ -4,9 +4,9 @@ Kernel booting process. Part 6.
 Introduction
 --------------------------------------------------------------------------------
 
-This is the sixth part of the `Kernel booting process` series. In the [previous part](linux-bootstrap-5.md) we have seen the end of the kernel boot process. But we have skipped some important advanced parts.
+이것은 `kernel booting process` series의 여섯번째 part입니다. 이전 [part](linux-bootstrap-5.md)에서 kernel boot process의 마지막을 살펴보았습니다. 하지만 일부 중요한 고급 part를 skip했습니다.
 
-As you may remember the entry point of the Linux kernel is the `start_kernel` function from the [main.c](https://github.com/torvalds/linux/blob/v4.16/init/main.c) source code file started to execute at `LOAD_PHYSICAL_ADDR` address. This address depends on the `CONFIG_PHYSICAL_START` kernel configuration option which is `0x1000000` by default:
+기억하시겠지만 linux kernel의 entry point는 `start_kernel` 함수입니다. 이 함수는 [main.c](https://github.com/torvalds/linux/blob/v4.16/init/main.c) source code file에 정의되어 있고 `LOAD_PHYSICAL_ADDR` address에서 수행됩니다. 이 address는 `CONFIG_PHYSICAL_START` kernel configuration option에 의해 결정되며 default는 `0x1000000` 입니다:
 
 ```
 config PHYSICAL_START
@@ -19,18 +19,18 @@ config PHYSICAL_START
       ...
 ```
 
-This value may be changed during kernel configuration, but also load address can be selected as a random value. For this purpose the `CONFIG_RANDOMIZE_BASE` kernel configuration option should be enabled during kernel configuration.
+이 값은 kernel configuration에서 변경될 수 있고 또한 load address도 random value로 선택될 수 있습니다. 이것을 위해서 kernel configuration시 `CONFIG_RANDOMIZE_BASE` kernel configuration option을 enable하면 됩니다.
 
-In this case a physical address at which Linux kernel image will be decompressed and loaded will be randomized. This part considers the case when this option is enabled and load address of the kernel image will be randomized for [security reasons](https://en.wikipedia.org/wiki/Address_space_layout_randomization).
+이 경우 linux kernel image가 압축 해제되고 load될 physical address가 randomize됩니다. 이 part에서는 이 option이 enable되었을 경우를 살펴볼 것입니다. kernel image의 load address는 [security 이유](https://en.wikipedia.org/wiki/Address_space_layout_randomization)로 randomize됩니다.
 
 Initialization of page tables
 --------------------------------------------------------------------------------
 
-Before the kernel decompressor will start to find random memory range where the kernel will be decompressed and loaded, the identity mapped page tables should be initialized. If a [bootloader](https://en.wikipedia.org/wiki/Booting) used [16-bit or 32-bit boot protocol](https://github.com/torvalds/linux/blob/v4.16/Documentation/x86/boot.txt), we already have page tables. But in any case, we may need new pages by demand if the kernel decompressor selects memory range outside of them. That's why we need to build new identity mapped page tables.
+kernel decompressor가 압축 kernel을 압축 해제하고 load할 random memory range를 찾기 전에 identity mapped page tables이 초기화되어야 합니다. 만약 [bootloader](https://en.wikipedia.org/wiki/Booting)가 [16-bit or 32-bit boot protocol](https://github.com/torvalds/linux/blob/v4.16/Documentation/x86/boot.txt)를 사용한다면 이미 page tables이 존재합니다. 하지만 kernel decompressor가 이것 외의 memory range를 선택한다면 필요에 따라 새로운 page가 필요할 수도 있습니다. 이것이 새로운 identity mapped page tables를 만들어야 하는 이유입니다.
 
-Yes, building of identity mapped page tables is the one of the first step during randomization of load address. But before we will consider it, let's try to remember where did we come from to this point.
+네, identity mapped page tables을 생성하는 것이 load address의 randomization의 첫번째 step입니다. 하지만 그것을 살펴보기 전에 어디서 여기로 왔는지 기억해 봅시다.
 
-In the [previous part](linux-bootstrap-5.md), we saw transition to [long mode](https://en.wikipedia.org/wiki/Long_mode) and jump to the kernel decompressor entry point - `extract_kernel` function. The randomization stuff starts here from the call of the:
+이전 [part](linux-bootstrap-5.md)에서 [long mode](https://en.wikipedia.org/wiki/Long_mode) 천이와 kernel decompressor entry point - `extract_kernel` 함수로의 jump하는 것을 살펴보았습니다. randomization은 여기서 `choose_random_location` 함수를 호출하는 것으로 시작됩니다:
 
 ```C
 void choose_random_location(unsigned long input,
@@ -41,7 +41,7 @@ void choose_random_location(unsigned long input,
 {}
 ```
 
-function. As you may see, this function takes following five parameters:
+보시는 바와 같이 이 함수는 다음의 5개의 parameter를 받습니다:
 
   * `input`;
   * `input_size`;
@@ -49,7 +49,7 @@ function. As you may see, this function takes following five parameters:
   * `output_isze`;
   * `virt_addr`.
 
-Let's try to understand what these parameters are. The first `input` parameter came from parameters of the `extract_kernel` function from the [arch/x86/boot/compressed/misc.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/misc.c) source code file:
+이 parameter가 무엇인지 이해해 봅시다. 첫번째 `input` parameter는 [arch/x86/boot/compressed/misc.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/misc.c) source code file의 `extract_kernel` 함수의 parameter에서 옵니다:
 
 ```C
 asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
@@ -71,13 +71,13 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 }
 ```
 
-This parameter is passed from assembler code:
+이 parameter는 [arch/x86/boot/compressed/head_64.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/head_64.S)의 assembler code에서 전달됩니다:
 
 ```C
 leaq	input_data(%rip), %rdx
 ```
 
-from the [arch/x86/boot/compressed/head_64.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/head_64.S). The `input_data` is generated by the little [mkpiggy](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/mkpiggy.c) program. If you have compiled linux kernel source code under your hands, you may find the generated file by this program which should be placed in the `linux/arch/x86/boot/compressed/piggy.S`. In my case this file looks:
+`input_data`는 작은 [mkpiggy](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/mkpiggy.c) program에서 생성됩니다. linux kernel source code를 compile하면 이 program이 생성한 file을 `linux/arch/x86/boot/compressed/piggy.S`에서 찾을 수 있습니다. 저의 경우 이 file은 다음과 같았습니다:
 
 ```assembly
 .section ".rodata..compressed","a",@progbits
@@ -91,21 +91,21 @@ input_data:
 input_data_end:
 ```
 
-As you may see it contains four global symbols. The first two `z_input_len` and `z_output_len` which are sizes of compressed and uncompressed `vmlinux.bin.gz`. The third is our `input_data` and as you may see it points to linux kernel image in raw binary format (all debugging symbols, comments and relocation information are stripped). And the last `input_data_end` points to the end of the compressed linux image.
+보시는 것처럼 이것은 4개의 global symbols을 포함합니다. 처음 두개는 `z_input_len`과 `z_output_len`으로 `vmlinux.bin.gz`의 압축된 것과 압축 해제된 것의 size입니다. 세번째는 `input_data`로 raw binary format (모든 debugging symbols, comment, relocation 정보가 strip된 것)의 linux kernel image을 가르킵니다. 그리고 마지막 `input_data_end`는 압축된 linux image의 마지막을 가르킵니다.
 
-So, our first parameter of the `choose_random_location` function is the pointer to the compressed kernel image that is embedded into the `piggy.o` object file.
+`choose_random_location` 함수의 첫번째 parameter는 `piggy.o` object file을 포함하고 있는 압축된 kernel image를 가르킵니다.
 
-The second parameter of the `choose_random_location` function is the `z_input_len` that we have seen just now.
+`choose_random_location` 함수의 두번째 parameter는 방금 본 `z_input_len` 입니다.
 
-The third and fourth parameters of the `choose_random_location` function are address where to place decompressed kernel image and the length of decompressed kernel image respectively. The address where to put decompressed kernel came from [arch/x86/boot/compressed/head_64.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/head_64.S) and it is address of the `startup_32` aligned to 2 megabytes boundary. The size of the decompressed kernel came from the same `piggy.S` and it is `z_output_len`.
+`choose_random_location` 함수의 세번째와 네번째 parameters는 압축 해제한 kernel image를 위치시킬 address와 압축 해제한 kernel image의 크기입니다. 압축 해제한 kernel을 저장할 address는 [arch/x86/boot/compressed/head_64.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/head_64.S)에서 오고 그것은 2 megabytes boundary에 align된 `startup_32`의 address입니다. 압축 해제한 kernel의 size는 `piggy.S`에서 오고 그것은 `z_output_len`입니다.
 
-The last parameter of the `choose_random_location` function is the virtual address of the kernel load address. As we may see, by default it coincides with the default physical load address:
+`choose_random_location` 함수의 마지막 parameter는 kernel load address의 virtual address입니다. 하기에서 보시는 것과 같이 default로 그것은 default physical load address와 일치합니다:
 
 ```C
 unsigned long virt_addr = LOAD_PHYSICAL_ADDR;
 ```
 
-which depends on kernel configuration:
+그리고 그것은 kernel configuration에 의해 결정됩니다:
 
 ```C
 #define LOAD_PHYSICAL_ADDR ((CONFIG_PHYSICAL_START \
@@ -113,7 +113,7 @@ which depends on kernel configuration:
 				& ~(CONFIG_PHYSICAL_ALIGN - 1))
 ```
 
-Now, as we considered parameters of the `choose_random_location` function, let's look at implementation of it. This function starts from the checking of `nokaslr` option in the kernel command line:
+지금까지 `choose_random_location` 함수의 parameters를 살펴보았습니다. 이제 구현을 살펴봅시다. 이 함수는 kernel command line의 `nokaslr` option을 확인하는 것으로 시작합니다:
 
 ```C
 if (cmdline_find_option_bool("nokaslr")) {
@@ -122,7 +122,7 @@ if (cmdline_find_option_bool("nokaslr")) {
 }
 ```
 
-and if the options was given we exit from the `choose_random_location` function ad kernel load address will not be randomized. Related command line options can be found in the [kernel documentation](https://github.com/torvalds/linux/blob/v4.16/Documentation/admin-guide/kernel-parameters.rst):
+만약 이 option이 주어졌다면 `choose_random_location` 함수를 나가고 kernel load address는 randomize되지 않습니다. 관련된 command line option은 [kernel documentation](https://github.com/torvalds/linux/blob/v4.16/Documentation/admin-guide/kernel-parameters.rst)에서 찾아볼 수 있습니다:
 
 ```
 kaslr/nokaslr [X86]
@@ -134,19 +134,19 @@ kASLR is disabled by default. When kASLR is enabled,
 hibernation will be disabled.
 ```
 
-Let's assume that we didn't pass `nokaslr` to the kernel command line and the `CONFIG_RANDOMIZE_BASE` kernel configuration option is enabled. In this case we add `kASLR` flag to kernel load flags:
+kernel command line에 `nokaslr`을 전달하지 않고 `CONFIG_RANDOMIZE_BASE` kernel configuration option이 enable되어 있다고 가정해 봅시다. 이 경우 kernel load flags에 `kASLR` flag를 추가합니다:
 
 ```C
 boot_params->hdr.loadflags |= KASLR_FLAG;
 ```
 
-and the next step is the call of the:
+다음 step은 `initialize_identity_maps` 함수를 호출하는 것입니다:
 
 ```C
 initialize_identity_maps();
 ```
 
-function which is defined in the [arch/x86/boot/compressed/kaslr_64.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/kaslr_64.c) source code file. This function starts from initialization of `mapping_info` an instance of the `x86_mapping_info` structure:
+이 함수는 [arch/x86/boot/compressed/kaslr_64.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/kaslr_64.c) source code file에 정의되어 있습니다. 이 함수는 `x86_mapping_info` structure의 instance인 `mapping_info`를 초기화 하는 것으로 시작합니다:
 
 ```C
 mapping_info.alloc_pgt_page = alloc_pgt_page;
@@ -155,7 +155,7 @@ mapping_info.page_flag = __PAGE_KERNEL_LARGE_EXEC | sev_me_mask;
 mapping_info.kernpg_flag = _KERNPG_TABLE;
 ```
 
-The `x86_mapping_info` structure is defined in the [arch/x86/include/asm/init.h](https://github.com/torvalds/linux/blob/v4.16/arch/x86/include/asm/init.h) header file and looks:
+`x86_mapping_info` structure는 [arch/x86/include/asm/init.h](https://github.com/torvalds/linux/blob/v4.16/arch/x86/include/asm/init.h) header file에 정의되어 있고 다음과 같습니다:
 
 ```C
 struct x86_mapping_info {
@@ -168,18 +168,18 @@ struct x86_mapping_info {
 };
 ```
 
-This structure provides information about memory mappings. As you may remember from the previous part, we already setup'ed initial page tables from 0 up to `4G`. For now we may need to access memory above `4G` to load kernel at random position. So, the `initialize_identity_maps` function executes initialization of a memory region for a possible needed new page table. First of all let's try to look at the definition of the `x86_mapping_info` structure.
+이 structure는 memory mappings에 대한 정보를 제공합니다. 이전 part에서 기억하시는 것처럼, 이미 0부터 `4G`까지의 page tables을 setup하였습니다. 여기서 load kernel의 random position에 따라 `4G` 상위의 memory를 access해야 할 수도 있습니다. 그래서 `initialize_identity_maps` 함수는 새로운 page table이 필요한 경우를 위해 memory region을 초기화 합니다. 먼저 `x86_mapping_info` structure의 정의를 살펴봅시다.
 
-The `alloc_pgt_page` is a callback function that will be called to allocate space for a page table entry. The `context` field is an instance of the `alloc_pgt_data` structure in our case which will be used to track allocated page tables. The `page_flag` and `kernpg_flag` fields are page flags. The first represents flags for `PMD` or `PUD` entries. The second `kernpg_flag` field represents flags for kernel pages which can be overridden later. The `direct_gbpages` field represents support for huge pages and the last `offset` field represents offset between kernel virtual addresses and physical addresses up to `PMD` level.
+`alloc_pgt_page`는 page table entry를 위한 space를 allocate하기 위해 호출되는 callback 함수입니다. `context` field는 allocate된 page table을 track하기 위한 `alloc_pgt_data` structure의 instance입니다. `page_flag`와 `kernpg_flag` field는 page flags입니다. 첫번째 것은 `PMD` 혹은 `PUD` entries를 위한 flag를 나타냅니다. 두번째 `kernpg_flag` field는 나중에 overridden될 수 있는 kernel pages를 위한 flags를 나타냅니다. `direct_gbpage` field는 huge pages를 위한 flag를 나타냅니다. 마지막 `offset` field는 kernel virtual address와 physical address의 `PMD` level까지의 offset을 나타냅니다.
 
-The `alloc_pgt_page` callback just validates that there is space for a new page, allocates new page:
+`alloc_pgt_page` callback은 새로운 page를 위한 공간이 있는지 확인하고 새로운 page를 할당합니다:
 
 ```C
 entry = pages->pgt_buf + pages->pgt_buf_offset;
 pages->pgt_buf_offset += PAGE_SIZE;
 ```
 
-in the buffer from the:
+`alloc_pgt_data` structure로부터 page가 할당됩니다:
 
 ```C
 struct alloc_pgt_data {
@@ -189,36 +189,36 @@ struct alloc_pgt_data {
 };
 ```
 
-structure and returns address of a new page. The last goal of the `initialize_identity_maps` function is to initialize `pgdt_buf_size` and `pgt_buf_offset`. As we are only in initialization phase, the `initialze_identity_maps` function sets `pgt_buf_offset` to zero:
+`alloc_pgt_page` callback은 새로운 page의 address를 return합니다. `initialize_identity_maps` 함수의 최종 목적은 `pgdt_buf_size`와 `pgt_buf_offset`을 초기화하는 것입니다. 초기화 phase로 `initialize_identity_maps` 함수는 `pgt_buf_offset`을 0으로 설정합니다:
 
 ```C
 pgt_data.pgt_buf_offset = 0;
 ```
 
-and the `pgt_data.pgt_buf_size` will be set to `77824` or `69632` depends on which boot protocol will be used by bootloader (64-bit or 32-bit). The same is for `pgt_data.pgt_buf`. If a bootloader loaded the kernel at `startup_32`, the `pgdt_data.pgdt_buf` will point to the end of the page table which already was initialzed in the [arch/x86/boot/compressed/head_64.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/head_64.S):
+`pgt_data.pgt_buf_size`는 bootloader에서 어떤 boot protocol (64-bit 혹은 32-bit)을 사용하였는지에 따라 `77824` 혹은 `69632`로 설정됩니다. `pgt_data.pgt_buf`도 동일합니다. bootloader가 kernel을 `startup_32`에 load했다면 `pgdt_data.pgdt_buf`는 [arch/x86/boot/compressed/head_64.S](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/head_64.S)에서 이미 초기화된 page table의 마지막을 가르키게 됩니다:
 
 ```C
 pgt_data.pgt_buf = _pgtable + BOOT_INIT_PGT_SIZE;
 ```
 
-where `_pgtable` points to the beginning of this page table [_pgtable](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/vmlinux.lds.S). In other way, if a bootloader have used 64-bit boot protocol and loaded the kernel at `startup_64`, early page tables should be built by bootloader itself and `_pgtable` will be just overwrote:
+여기서 `_pgtable`은 page table [_pgtable](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/vmlinux.lds.S)의 시작을 가르킵니다. 다른 방식으로 bootloader가 64-bit boot protocol을 사용하여 kernel을 `startup_64`에 load하였다면 early page table은 bootloader가 생성하고 `_pgtable`이 이를 overwrite합니다:
 
 ```C
 pgt_data.pgt_buf = _pgtable
 ```
 
-As the buffer for new page tables is initialized, we may return back to the `choose_random_location` function.
+새로운 page tables을 위한 buffer가 초기화되면 `choose_random_location` 함수로 돌아갑니다.
 
 Avoid reserved memory ranges
 --------------------------------------------------------------------------------
 
-After the stuff related to identity page tables is initilized, we may start to choose random location where to put decompressed kernel image. But as you may guess, we can't choose any address. There are some reseved addresses in memory ranges. Such addresses occupied by important things, like [initrd](https://en.wikipedia.org/wiki/Initial_ramdisk), kernel command line and etc. The
+identity page table 관련 작업이 초기화된 후, 압축 해제한 kernel image를 위치시킬 random location의 선택을 시작합니다. 하지만 예상하신 바와 같이 아무 address나 선택할 수는 없습니다. memory range에는 일부 reserved address가 있습니다. 이러한 address는 [initrd](https://en.wikipedia.org/wiki/Initial_ramdisk), kernel command line 등의 중요한 것에 점유되어 있습니다.
 
 ```C
 mem_avoid_init(input, input_size, *output);
 ```
 
-function will help us to do this. All non-safe memory regions will be collected in the:
+`mem_avoid_init` 함수는 모든 non-safe memory를 mem_avoid array에 모읍니다:
 
 ```C
 struct mem_vector {
@@ -229,7 +229,7 @@ struct mem_vector {
 static struct mem_vector mem_avoid[MEM_AVOID_MAX];
 ```
 
-array. Where `MEM_AVOID_MAX` is from `mem_avoid_index` [enum](https://en.wikipedia.org/wiki/Enumerated_type#C) which represents different types of reserved memory regions:
+여기서 `MEM_AVOID_MAX`는 reserved memory region의 다른 type을 나타내는 `mem_avoid_index` [enum](https://en.wikipedia.org/wiki/Enumerated_type#C)에서 옵니다:
 
 ```C
 enum mem_avoid_index {
@@ -243,9 +243,9 @@ enum mem_avoid_index {
 };
 ```
 
-Both are defined in the [arch/x86/boot/compressed/kaslr.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/kaslr.c) source code file.
+둘 다 [arch/x86/boot/compressed/kaslr.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/kaslr.c) source code file에 정의되어 있습니다.
 
-Let's look at the implementation of the `mem_avoid_init` function. The main goal of this function is to store information about reseved memory regions described by the `mem_avoid_index` enum in the `mem_avoid` array and create new pages for such regions in our new identity mapped buffer. Numerous parts fo the `mem_avoid_index` function are similar, but let's take a look at the one of them:
+`mem_avoid_init` 함수의 구현을 살펴봅시다. 이 함수의 주 목적은 `mem_avoid_index` enum에 기술되어 있는 reserved memory region이 정보를 `mem_avoid` array에 저장하는 것입니다. 그리고 새로운 identity mapped buffer에 이러한 region을 위한 새로운 page를 생성합니다. `mem_avoid_index` 함수의 여러 부분이 비슷합니다. 그 중 하나를 살펴봅시다:
 
 ```C
 mem_avoid[MEM_AVOID_ZO_RANGE].start = input;
@@ -254,7 +254,7 @@ add_identity_map(mem_avoid[MEM_AVOID_ZO_RANGE].start,
 		 mem_avoid[MEM_AVOID_ZO_RANGE].size);
 ```
 
-At the beginning of the `mem_avoid_init` function tries to avoid memory region that is used for current kernel decompression. We fill an entry from the `mem_avoid` array with the start and size of such region and call the `add_identity_map` function which should build identity mapped pages for this region. The `add_identity_map` function is defined in the [arch/x86/boot/compressed/kaslr_64.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/kaslr_64.c) source code file and looks:
+`mem_avoid_init` 함수의 시작에서 현재 kernel 압축 해제를 위한 memory region을 회피하기 위한 시도합니다. `mem_avoid` array의 entry를 이러한 region의 시작 위치와 size를 채우고 이 region을 위한 identity mapped page를 생성하는 `add_identity_map` 함수를 호출합니다. `add_identity_map` 함수는 [arch/x86/boot/compressed/kaslr_64.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/kaslr_64.c)에 정의되어 있고 다음과 같습니다:
 
 ```C
 void add_identity_map(unsigned long start, unsigned long size)
@@ -271,18 +271,18 @@ void add_identity_map(unsigned long start, unsigned long size)
 }
 ```
 
-As you may see it aligns memory region to 2 megabytes boundary and checks given start and end addresses.
+보시는 바와 같이 이것은 2 megabytes boundary에 align시키고 전달받은 시작과 끝 address를 확인합니다.
 
-In the end it just calls the `kernel_ident_mapping_init` function from the [arch/x86/mm/ident_map.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/mm/ident_map.c) source code file and pass `mapping_info` instance that was initilized above, address of the top level page table and addresses of memory region for which new identity mapping should be built.
+마지막으로 [arch/x86/mm/ident_map.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/mm/ident_map.c) source code file에 정의되어 있는 `kernel_ident_mapping_init` 함수를 호출하고 위에서 초기화된 `mapping_info` instance, top level page table의 address, 새로운 identity mapping이 생성될 memory region의 address를 전달합니다.
 
-The `kernel_ident_mapping_init` function sets default flags for new pages if they were not given:
+`kernel_ident_mapping_init` 함수는 flag가 주어지지 않으면 새로운 page에 default flag를 설정합니다:
 
 ```C
 if (!info->kernpg_flag)
 	info->kernpg_flag = _KERNPG_TABLE;
 ```
 
-and starts to build new 2-megabytes (because of `PSE` bit in the `mapping_info.page_flag`) page entries (`PGD -> P4D -> PUD -> PMD` in a case of [five-level page tables](https://lwn.net/Articles/717293/) or `PGD -> PUD -> PMD` in a case of [four-level page tables](https://lwn.net/Articles/117749/)) related to the given addresses.
+그리고 전달받은 address에 관련된 새로운 2-megabytes (`mapping_info.page_flag`에 `PSE` bit 때문) page entries ([five-level page tables](https://lwn.net/Articles/717293/) 인 경우 `PGD -> P4D -> PUD -> PMD` 혹은 [four-level page tables](https://lwn.net/Articles/117749/) 인 경우 `PGD -> PUD -> PMD`) 를 생성합니다.
 
 ```C
 for (; addr < end; addr = next) {
@@ -299,32 +299,32 @@ for (; addr < end; addr = next) {
 }
 ```
 
-First of all here we find next entry of the `Page Global Directory` for the given address and if it is greater than `end` of the given memory region, we set it to `end`. After this we allocate a new page with our `x86_mapping_info` callback that we already considered above and call the `ident_p4d_init` function. The `ident_p4d_init` function will do the same, but for low-level page directories (`p4d` -> `pud` -> `pmd`).
+먼저 전달받은 address의 `Page Global Directory`의 다음 entry를 찾고 이것이 전달받은 memory region의 `end`보다 크면 그것을 `end`로 설정합니다. 이후 이미 위에서 살펴본 `x86_mapping_info` callback을 사용하여 새로운 page를 할당받고 `ident_p4d_init` 함수를 호출합니다. `ident_p4d_init` 함수는 low-level page directories (`p4d` -> `pud` -> `pmd`)를 위해 동일한 작업을 수행합니다.
 
-That's all.
+이것이 전부입니다.
 
-New page entries related to reserved addresses are in our page tables. This is not the end of the `mem_avoid_init` function, but other parts are similar. It just build pages for [initrd](https://en.wikipedia.org/wiki/Initial_ramdisk), kernel command line and etc.
+reserved address 관련된 새로운 page entries가 page table에 생성되었습니다. 이것이 `mem_avoid_init` 함수의 끝이 아닙니다. 하지만 다른 부분은 비슷합니다. 이것은 [initrd](https://en.wikipedia.org/wiki/Initial_ramdisk), kernel command line 등을 위한 page를 생성합니다.
 
-Now we may return back to `choose_random_location` function.
+이제 `choose_random_location` 함수로 돌아가봅시다.
 
 Physical address randomization
 --------------------------------------------------------------------------------
 
-After the reserved memory regions were stored in the `mem_avoid` array and identity mapping pages were built for them, we select minimal available address to choose random memory region to decompress the kernel:
+reserved memory region이 `mem_avoid` array에 저장되고 이것들을 위한 identity mapping pages가 생성된 후, kernel을 압축 해제하기 위한 random memory region을 선택하기 위해 최소 가능 address를 선택합니다:
 
 ```C
 min_addr = min(*output, 512UL << 20);
 ```
 
-As you may see it should be smaller than `512` megabytes. This `512` megabytes value was selected just to avoid unknown things in lower memory.
+보시는 바와 같이 `512` megabytes보다 작습니다. 이 `512` megabytes는 하위 memory의 알수 없는 것들을 회피하기 위해 선택되었습니다.
 
-The next step is to select random physical and virtual addresses to load kernel. The first is physical addresses:
+다음 step은 kernel을 load하기 위한 random physical과 virtual address를 선택하는 것입니다. 먼저 physical address입니다:
 
 ```C
 random_addr = find_random_phys_addr(min_addr, output_size);
 ```
 
-The `find_random_phys_addr` function is defined in the [same](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/kaslr.c) source code file:
+`find_random_phys_addr` 함수는 [same](https://github.com/torvalds/linux/blob/v4.16/arch/x86/boot/compressed/kaslr.c) source code file에 정의되어 있습니다:
 
 ```
 static unsigned long find_random_phys_addr(unsigned long minimum,
@@ -340,7 +340,7 @@ static unsigned long find_random_phys_addr(unsigned long minimum,
 }
 ```
 
-The main goal of `process_efi_entries` function is to find all suitable memory ranges in full accessible memory to load kernel. If the kernel compiled and runned on the system without [EFI](https://en.wikipedia.org/wiki/Unified_Extensible_Firmware_Interface) support, we continue to search such memory regions in the [e820](https://en.wikipedia.org/wiki/E820) regions. All founded memory regions will be stored in the
+`process_efi_entries` 함수의 주 목적은 전체 accessible memory에서 kernel을 load하기 위한 모든 가능한 memory rabge를 찾는 것입니다. kernel이 [EFI](https://en.wikipedia.org/wiki/Unified_Extensible_Firmware_Interface) 지원없이 system에서 compile되고 수행되었다면, [e820](https://en.wikipedia.org/wiki/E820) regions에서 이러한 memory를 찾습니다. 발견된 모든 memroy region은 `slot_areas`에 저장됩니다:
 
 ```C
 struct slot_area {
@@ -353,20 +353,20 @@ struct slot_area {
 static struct slot_area slot_areas[MAX_SLOT_AREA];
 ```
 
-array. The kernel will select a random index of this array for kernel to be decompressed. This selection will be executed by the `slots_fetch_random` function. The main goal of the `slots_fetch_random` function is to select random memory range from the `slot_areas` array via `kaslr_get_random_long` function:
+kernel이 압축 해제될 곳을 위해 이 array에서 random index를 선택합니다. 이 선택은 `slots_fetch_random` 함수에서 수행됩니다. `slots_fetch_random` 함수의 주 목적은 `kaslr_get_random_long` 함수를 통해 `slot_areas` array에서 random한 memory range를 선택하는 것입니다:
 
 ```C
 slot = kaslr_get_random_long("Physical") % slot_max;
 ```
 
-The `kaslr_get_random_long` function is defined in the [arch/x86/lib/kaslr.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/lib/kaslr.c) source code file and it just returns random number. Note that the random number will be get via different ways depends on kernel configuration and system opportunities (select random number base on [time stamp counter](https://en.wikipedia.org/wiki/Time_Stamp_Counter), [rdrand](https://en.wikipedia.org/wiki/RdRand) and so on).
+`kaslr_get_random_long` 함수는 [arch/x86/lib/kaslr.c](https://github.com/torvalds/linux/blob/v4.16/arch/x86/lib/kaslr.c) source code file에 정의되어 있고 단순히 random number를 return합니다. kernel configuration과 system opportunities에 따라 다른 방법으로 random number를 얻는 것에 주목하십시요. ([time stamp counter](https://en.wikipedia.org/wiki/Time_Stamp_Counter), [rdrand](https://en.wikipedia.org/wiki/RdRand) 등을 통해 얻음)
 
-That's all from this point random memory range will be selected.
+이것이 전부입니다. random한 memory range가 선택될 것입니다.
 
 Virtual address randomization
 --------------------------------------------------------------------------------
 
-After random memory region was selected by the kernel decompressor, new identity mapped pages will be built for this region by demand:
+kernel decompressor에 의해 random한 memory region이 선택된 후, 필요에 따라 이 영역을 위한 identity mapped pages가 생성됩니다:
 
 ```C
 random_addr = find_random_phys_addr(min_addr, output_size);
@@ -377,7 +377,7 @@ if (*output != random_addr) {
 }
 ```
 
-From this time `output` will store the base address of a memory region where kernel will be decompressed. But for this moment, as you may remember we randomized only physical address. Virtual address should be randomized too in a case of [x86_64](https://en.wikipedia.org/wiki/X86-64) architecture:
+여기부터 `output`은 kernel이 압축 해제될 memory region의 base address를 저장할 것입니다. 하지만 지금 이 순간, 기억하시는 것처럼 오직 physical address만 randomize되었습니다. [x86_64](https://en.wikipedia.org/wiki/X86-64) architecture에서는 virtual address도 randomize되어야 합니다:
 
 ```C
 if (IS_ENABLED(CONFIG_X86_64))
@@ -386,22 +386,22 @@ if (IS_ENABLED(CONFIG_X86_64))
 *virt_addr = random_addr;
 ```
 
-As you may see in a case of non `x86_64` architecture, randomzed virtual address will coincide with randomized physical address. The `find_random_virt_addr` function calculates amount of virtual memory ranges that may hold kernel image and calls the `kaslr_get_random_long` that we already saw in a previous case when we tried to find random `physical` address.
+`x86_64` architecture가 아닌 경우에서 보시는 것처럼, virtual address의 randomize는 physical address의 randomize와 동시에 일어납니다. `find_random_virt_addr` 함수가 kernel image를 저장할 virtual memory ranges의 양을 계산하고 이전 random `physical` address를 찾을때 살펴본 `kaslr_get_random_long` 함수를 호출합니다.
 
-From this moment we have both randomized base physical (`*output`) and virtual (`*virt_addr`) addresses for decompressed kernel.
+이 순간부터 base physical address (`*output`)와 base virtual address (`*virt_addr`)가 모두 randomize되었습니다.
 
-That's all.
+이것이 전부입니다.
 
 Conclusion
 --------------------------------------------------------------------------------
 
-This is the end of the sixth and the last part about linux kernel booting process. We will not see posts about kernel booting anymore (maybe updates to this and previous posts), but there will be many posts about other kernel internals. 
+이것의 linux kernel booting process의 여섯번째 그리고 마지막 part의 끝입니다. 이제 더 이상 kernel booting에 관한 post는 없을 것입니다. (이전 post에 대한 update는 있을 수 있습니다) 하지만 다른 kernel internals에 대한 많은 post가 있을 것입니다.
 
-Next chapter will be about kernel initialization and we will see the first steps in the Linux kernel initialization code.
+다음 chapter는 kernel initialization에 관한 것이 될 것입니다. linux kernel initialization code의 첫번째 step을 살펴볼 것입니다.
 
-If you have any questions or suggestions write me a comment or ping me in [twitter](https://twitter.com/0xAX).
+질문이나 제안이 있으시면 comment를 남기시거나 [twitter](https://twitter.com/0xAX)로 알려 주십시요.
 
-**Please note that English is not my first language, And I am really sorry for any inconvenience. If you find any mistakes please send me PR to [linux-insides](https://github.com/0xAX/linux-internals).**
+**영어는 저의 모국어가 아닙니다. 불편한 점이 있으셨다면 먼저 사죄드립니다. 만약 잘못된 점을 발견하시면 [linux-insides](https://github.com/0xAX/linux-internals)로 PR을 보내주십시요.**
 
 Links
 --------------------------------------------------------------------------------
